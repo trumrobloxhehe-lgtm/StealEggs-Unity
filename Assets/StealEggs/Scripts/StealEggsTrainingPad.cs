@@ -6,21 +6,32 @@ public class StealEggsTrainingPad : MonoBehaviour
 {
     public float trainingPerSecond = 3f;
     private float messageTimer;
+    private Collider zone;
 
-    private void Reset() { GetComponent<Collider>().isTrigger = true; }
-
-    private void OnTriggerStay(Collider other)
+    private void Awake()
     {
-        StealEggsPlayerController player = other.GetComponent<StealEggsPlayerController>();
-        if (player == null) player = other.GetComponentInParent<StealEggsPlayerController>();
-        if (player == null || StealEggsGameManager.Instance == null) return;
-        StealEggsGameManager.Instance.TrainSpeed(trainingPerSecond * Time.deltaTime);
-        messageTimer -= Time.deltaTime;
-        if (messageTimer <= 0f)
+        zone = GetComponent<Collider>();
+        if (zone != null) zone.isTrigger = true;
+    }
+
+    // Bounds overlap also works with a CharacterController when no Rigidbody is present.
+    private void Update()
+    {
+        if (zone == null || StealEggsGameManager.Instance == null) return;
+        StealEggsPlayerController[] players = Object.FindObjectsByType<StealEggsPlayerController>(FindObjectsSortMode.None);
+        foreach (StealEggsPlayerController player in players)
         {
-            StealEggsGameManager.Instance.ShowMessage("TRAINING! Speed " +
-                StealEggsGameManager.Instance.TrainingSpeed.ToString("F0") + " — stronger speed unlocks more zones.");
-            messageTimer = 1.4f;
+            if (player == null) continue;
+            CharacterController controller = player.GetComponent<CharacterController>();
+            if (controller == null || !zone.bounds.Intersects(controller.bounds)) continue;
+            StealEggsGameManager.Instance.TrainSpeed(trainingPerSecond * Time.deltaTime);
+            messageTimer -= Time.deltaTime;
+            if (messageTimer <= 0f)
+            {
+                StealEggsGameManager.Instance.ShowMessage("TRAINING! Speed " +
+                    StealEggsGameManager.Instance.TrainingSpeed.ToString("F0") + " — train more to unlock new regions.");
+                messageTimer = 1.4f;
+            }
         }
     }
 }
