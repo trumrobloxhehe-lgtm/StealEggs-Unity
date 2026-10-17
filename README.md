@@ -1,31 +1,35 @@
-# StealEggs3D — Unity Prototype Starter
+# StealEggs3D — Feature-Rich Unity Prototype
 
-A starter prototype for a 3D egg-stealing game with a blocky, Roblox-inspired avatar and third-person controls. It is not an exact Roblox clone and is not a finished online game.
+This is an **offline prototype** with a Roblox-inspired block avatar and third-person controls. It is not a finished multiplayer game or an exact Roblox clone.
 
 ## Included
-- Third-person follow/orbit camera
-- Hold right mouse button and drag to rotate the camera; scroll wheel to zoom
-- WASD / arrow-key camera-relative movement, Space to jump, Shift to sprint
-- Procedural walk/run arm and leg animation, idle breathing/bob and raised arms while jumping
-- Press E near an egg to pick it up; carry eggs back to the blue base to score
-- Rival AI bot with matching blocky character and basic locomotion animation
-- Unity Editor menu command to automatically generate the demo arena, characters, eggs, bases, HUD, camera and materials
+- Third-person orbit camera: hold right mouse and drag to look around, scroll to zoom
+- Block-style character with procedural idle, walk, run and jump animation
+- WASD / arrows to move, Space to jump, Shift to sprint, Q to dash, E to collect eggs
+- Common, rare, golden and diamond eggs with different values
+- Eggs respawn after a short delay; pickup and delivery particle effects
+- Bring eggs to the blue base to score and earn coins
+- Rival computer-controlled block character competes for eggs
+- Shop buttons upgrade speed, pickup range, bag size and dash cooldown
+- Two simple missions with one-time coin rewards
+- Local progress saved with Unity PlayerPrefs
+- Generated arena with trees, fences, HUD, shop and mission panel
 
-## Use in an existing Unity project
-1. Download this repository as a ZIP and extract it, or use GitHub Desktop to clone it.
-2. Copy `Assets/StealEggs` into your Unity project's `Assets` folder, merging folders and replacing files with the same names.
-3. Return to Unity and wait for scripts to compile.
-4. Choose **Steal Eggs → Build Demo Arena** from the top menu.
-5. Press the Play triangle. Click inside the Game view if keyboard input is not active.
+## Update an existing Unity project
+1. Exit Play mode if it is running.
+2. Extract the ZIP patch and open its `Assets` folder.
+3. Copy the `StealEggs` folder into your project's `Assets` folder, e.g. `C:\Users\HUONG\StealEggs3D\Assets`.
+4. If asked about duplicates, choose **Replace the files in the destination**.
+5. Return to Unity and wait for compilation.
+6. Select **Steal Eggs → Build Demo Arena** in the top menu, then press Play.
 
 ## Controls
-- **W/A/S/D** or arrow keys: move relative to the camera
-- **Hold right mouse button + drag:** orbit camera
-- **Mouse wheel:** zoom
-- **Space:** jump
-- **Shift:** run
-- **E:** collect a nearby egg
-- Return to the blue base to bank collected eggs
+- WASD / arrows: move relative to the camera
+- Hold right mouse button + drag: rotate camera
+- Mouse wheel: zoom
+- Space: jump; Shift: sprint; Q: dash; E: collect an egg
+- Return to the blue base to deposit eggs and earn coins
+- Click the four shop buttons to purchase upgrades
 
-## Current limitations
-This is an offline prototype, not a finished game. The rival is computer-controlled, and its animation is also procedural. Online multiplayer, shop/upgrades, saved progression, mobile touch controls, final art and a verified CrazyGames Web build still need work and testing.
+## Still not implemented
+Online multiplayer, network synchronization, mobile touch controls, final art/animation assets, anti-cheat, and a verified CrazyGames web build remain future work. The source has not been run in the user's local Unity Editor yet; a first local test is still needed.
