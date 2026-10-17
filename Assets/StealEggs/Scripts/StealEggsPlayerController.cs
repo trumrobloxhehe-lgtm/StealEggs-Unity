@@ -24,6 +24,8 @@ public class StealEggsPlayerController : MonoBehaviour
     private float dashTimeRemaining;
     private float dashCooldownRemaining;
     private Vector3 lastMoveDirection = Vector3.forward;
+    private float caughtStunRemaining;
+    private Vector3 knockbackVelocity;
 
     private void Awake()
     {
@@ -36,6 +38,17 @@ public class StealEggsPlayerController : MonoBehaviour
     {
         if (gameManager == null) gameManager = StealEggsGameManager.Instance;
         Keyboard keyboard = Keyboard.current;
+        if (caughtStunRemaining > 0f)
+        {
+            caughtStunRemaining -= Time.deltaTime;
+            verticalVelocity -= gravity * Time.deltaTime;
+            knockbackVelocity = Vector3.Lerp(knockbackVelocity, Vector3.zero, 4f * Time.deltaTime);
+            Vector3 forced = knockbackVelocity;
+            forced.y = verticalVelocity;
+            controller.Move(forced * Time.deltaTime);
+            if (characterAnimation != null) characterAnimation.SetMotion(0f, controller.isGrounded, verticalVelocity, false);
+            return;
+        }
         if (keyboard == null) return;
         if (dashCooldownRemaining > 0f) dashCooldownRemaining -= Time.deltaTime;
         if (keyboard.qKey.wasPressedThisFrame && dashCooldownRemaining <= 0f)
@@ -88,6 +101,17 @@ public class StealEggsPlayerController : MonoBehaviour
 
         if (keyboard.eKey.wasPressedThisFrame) TryCollectNearestEgg();
         TryDeliverAtHomeBase();
+    }
+
+    public void OnCaughtByGuardian(Vector3 sourcePosition)
+    {
+        Vector3 away = transform.position - sourcePosition;
+        away.y = 0f;
+        if (away.sqrMagnitude < .01f) away = -transform.forward;
+        knockbackVelocity = away.normalized * 7f;
+        verticalVelocity = 3.5f;
+        caughtStunRemaining = .65f;
+        dashTimeRemaining = 0f;
     }
 
     private void TryCollectNearestEgg()
