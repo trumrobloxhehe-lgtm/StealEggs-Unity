@@ -165,7 +165,7 @@ public class StealEggsGameManager : MonoBehaviour
         if (PlayerCarriedEggs > 0)
         {
             PlayerCarriedEggs--;
-            int lostValue = PlayerCarriedCoinValue / Mathf.Max(1, PlayerCarriedEggs + 1);
+            int lostValue = playerCarriedCoinValue / Mathf.Max(1, PlayerCarriedEggs + 1);
             playerCarriedCoinValue = Mathf.Max(0, playerCarriedCoinValue - lostValue);
             currentMessage = guardianName + " caught you! You lost one egg. Recover and try again.";
             StealEggsEffects.SpawnBurst(player != null ? player.position : sourcePosition, new Color(1f, .25f, .18f));
