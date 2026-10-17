@@ -229,16 +229,17 @@ public static class StealEggsDemoSetup
         Text message=TextUI(canvasObj.transform,"Message Text",Vector2.zero,new Vector2(950f,52f),20,TextAnchor.MiddleCenter);RectTransform mr=message.GetComponent<RectTransform>();mr.anchorMin=new Vector2(.5f,0f);mr.anchorMax=new Vector2(.5f,0f);mr.pivot=new Vector2(.5f,0f);mr.anchoredPosition=new Vector2(0f,18f);message.color=Color.white;message.fontStyle=FontStyle.Bold;manager.messageText=message;
         GameObject mp=new GameObject("Mission Panel",typeof(RectTransform),typeof(Image));mp.transform.SetParent(canvasObj.transform,false);RectTransform mpr=mp.GetComponent<RectTransform>();mpr.anchorMin=Vector2.one;mpr.anchorMax=Vector2.one;mpr.pivot=Vector2.one;mpr.anchoredPosition=new Vector2(-18f,-18f);mpr.sizeDelta=new Vector2(390f,112f);mp.GetComponent<Image>().color=new Color(.04f,.05f,.07f,.8f);
         Text missions=TextUI(mp.transform,"Mission Text",new Vector2(10f,-8f),new Vector2(370f,96f),15,TextAnchor.UpperLeft);missions.color=Color.white;manager.missionText=missions;
-        manager.speedButtonText=ShopButton(canvasObj.transform,"Speed Upgrade",new Vector2(18f,196f),manager.BuySpeedUpgrade);
-        manager.reachButtonText=ShopButton(canvasObj.transform,"Pickup Range Upgrade",new Vector2(18f,150f),manager.BuyReachUpgrade);
-        manager.bagButtonText=ShopButton(canvasObj.transform,"Bag Upgrade",new Vector2(18f,104f),manager.BuyBagUpgrade);
-        manager.dashButtonText=ShopButton(canvasObj.transform,"Dash Upgrade",new Vector2(18f,58f),manager.BuyDashUpgrade);
+        manager.hatchButtonText=ShopButton(canvasObj.transform,"Hatch Egg",new Vector2(18f,242f),StealEggsShopButton.ActionType.HatchEgg);
+        manager.speedButtonText=ShopButton(canvasObj.transform,"Speed Upgrade",new Vector2(18f,196f),StealEggsShopButton.ActionType.BuySpeed);
+        manager.reachButtonText=ShopButton(canvasObj.transform,"Pickup Range Upgrade",new Vector2(18f,150f),StealEggsShopButton.ActionType.BuyReach);
+        manager.bagButtonText=ShopButton(canvasObj.transform,"Bag Upgrade",new Vector2(18f,104f),StealEggsShopButton.ActionType.BuyBag);
+        manager.dashButtonText=ShopButton(canvasObj.transform,"Dash Upgrade",new Vector2(18f,58f),StealEggsShopButton.ActionType.BuyDash);
         Text controls=TextUI(canvasObj.transform,"Controls Text",Vector2.zero,new Vector2(395f,104f),15,TextAnchor.LowerRight);RectTransform cr=controls.GetComponent<RectTransform>();cr.anchorMin=new Vector2(1f,0f);cr.anchorMax=new Vector2(1f,0f);cr.pivot=new Vector2(1f,0f);cr.anchoredPosition=new Vector2(-18f,18f);controls.text="MOVE: WASD / ARROWS\nCAMERA: RIGHT MOUSE + DRAG\nJUMP: SPACE | SPRINT: SHIFT\nDASH: Q | PICK UP: E";controls.color=Color.white;
     }
-    private static Text ShopButton(Transform parent,string name,Vector2 pos,System.Action action)
+    private static Text ShopButton(Transform parent,string name,Vector2 pos,StealEggsShopButton.ActionType actionType)
     {
         GameObject obj=new GameObject(name,typeof(RectTransform),typeof(Image),typeof(Button));obj.transform.SetParent(parent,false);RectTransform r=obj.GetComponent<RectTransform>();r.anchorMin=Vector2.zero;r.anchorMax=Vector2.zero;r.pivot=Vector2.zero;r.anchoredPosition=pos;r.sizeDelta=new Vector2(260f,40f);
-        Image image=obj.GetComponent<Image>();image.color=new Color(.08f,.20f,.34f,.96f);Button button=obj.GetComponent<Button>();ColorBlock colors=button.colors;colors.highlightedColor=new Color(.16f,.42f,.66f,1f);colors.pressedColor=new Color(.04f,.13f,.24f,1f);button.colors=colors;button.onClick.AddListener(()=>action());
+        Image image=obj.GetComponent<Image>();image.color=new Color(.08f,.20f,.34f,.96f);Button button=obj.GetComponent<Button>();ColorBlock colors=button.colors;colors.highlightedColor=new Color(.16f,.42f,.66f,1f);colors.pressedColor=new Color(.04f,.13f,.24f,1f);button.colors=colors;StealEggsShopButton runtimeAction=obj.AddComponent<StealEggsShopButton>();runtimeAction.actionType=actionType;
         Text label=TextUI(obj.transform,"Label",Vector2.zero,new Vector2(250f,36f),14,TextAnchor.MiddleCenter);RectTransform lr=label.GetComponent<RectTransform>();lr.anchorMin=Vector2.zero;lr.anchorMax=Vector2.one;lr.offsetMin=new Vector2(5f,2f);lr.offsetMax=new Vector2(-5f,-2f);label.color=Color.white;label.fontStyle=FontStyle.Bold;return label;
     }
     private static Text TextUI(Transform parent,string name,Vector2 pos,Vector2 size,int fontSize,TextAnchor alignment)
