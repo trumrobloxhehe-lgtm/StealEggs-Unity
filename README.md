@@ -1,35 +1,39 @@
-# StealEggs3D — Feature-Rich Unity Prototype
+# StealEggs3D — Unity Gameplay Prototype
 
-This is an **offline prototype** with a Roblox-inspired block avatar and third-person controls. It is not a finished multiplayer game or an exact Roblox clone.
+This project is an original, Roblox-inspired egg-stealing simulator prototype. It is **not an exact copy** of another game's protected character models, maps, UI, or art, and it is not yet a finished online multiplayer game.
 
-## Included
-- Third-person orbit camera: hold right mouse and drag to look around, scroll to zoom
-- Block-style character with procedural idle, walk, run and jump animation
-- WASD / arrows to move, Space to jump, Shift to sprint, Q to dash, E to collect eggs
-- Common, rare, golden and diamond eggs with different values
-- Eggs respawn after a short delay; pickup and delivery particle effects
-- Bring eggs to the blue base to score and earn coins
-- Rival computer-controlled block character competes for eggs
-- Shop buttons upgrade speed, pickup range, bag size and dash cooldown
-- Two simple missions with one-time coin rewards
-- Local progress saved with Unity PlayerPrefs
-- Generated arena with trees, fences, HUD, shop and mission panel
+## Current prototype features
+- Third-person orbit camera: hold right mouse button and drag to rotate; wheel to zoom.
+- Block-style avatar with procedural idle/walk/run/jump animations.
+- WASD/arrows to move, Space to jump, Shift to sprint, Q to dash, E to collect eggs.
+- Eggs with Common, Rare, Golden and Diamond rarities and different coin values.
+- Eggs respawn after a short delay with pickup/delivery particle effects.
+- Bring eggs to the blue base for coins and unhatched-egg inventory.
+- Press the **Hatch Egg** HUD button to create original pets with randomized income.
+- Pets appear in a showcase near base and generate passive coins per second.
+- Click shop buttons for movement speed, pickup range, bag capacity and dash cooldown upgrades.
+- Two repeatable-progress missions with one-time coin rewards.
+- Stand on the speed-training treadmill to raise Speed and unlock gates to later regions.
+- Four original nest guardians chase after nearby eggs are stolen; getting caught can cost one carried egg.
+- Progress (coins, upgrades, trained speed, quests and hatched pet records) saves locally using Unity PlayerPrefs.
 
-## Update an existing Unity project
-1. Exit Play mode if it is running.
-2. Extract the ZIP patch and open its `Assets` folder.
-3. Copy the `StealEggs` folder into your project's `Assets` folder, e.g. `C:\Users\HUONG\StealEggs3D\Assets`.
-4. If asked about duplicates, choose **Replace the files in the destination**.
-5. Return to Unity and wait for compilation.
-6. Select **Steal Eggs → Build Demo Arena** in the top menu, then press Play.
+## Open and generate the demo scene
+1. In GitHub, choose **Code → Download ZIP**, extract the repository.
+2. Use Unity Hub → **Projects → Add/Open** and select the extracted repository root (it contains `Assets`, `Packages`, and `ProjectSettings`).
+3. Open with Unity 6.6 and wait for compilation.
+4. On the Unity top menu choose **Steal Eggs → Build Demo Arena**.
+5. Press Play.
+
+If you keep using an older local project, copy the repository's complete `Assets/StealEggs` folder into your project's `Assets` folder and replace files with the same names; then let Unity compile and run the menu command.
 
 ## Controls
-- WASD / arrows: move relative to the camera
-- Hold right mouse button + drag: rotate camera
-- Mouse wheel: zoom
-- Space: jump; Shift: sprint; Q: dash; E: collect an egg
-- Return to the blue base to deposit eggs and earn coins
-- Click the four shop buttons to purchase upgrades
+- **W/A/S/D** or arrow keys: move relative to camera.
+- **Hold right mouse + drag:** rotate camera.
+- **Mouse wheel:** zoom.
+- **Space:** jump; **Shift:** sprint; **Q:** dash; **E:** collect.
+- Stand on the blue treadmill to train speed.
+- Return eggs to the blue base, then click **Hatch Egg** to hatch pets.
+- Click the four shop buttons to upgrade.
 
-## Still not implemented
-Online multiplayer, network synchronization, mobile touch controls, final art/animation assets, anti-cheat, and a verified CrazyGames web build remain future work. The source has not been run in the user's local Unity Editor yet; a first local test is still needed.
+## Known limitations
+This is an early offline prototype assembled through source updates; it has **not been run and verified in the user's local Unity Editor yet**. The rival/guardians are simple AI, the pets are procedural placeholder visuals, and the region barriers are a prototype progression mechanic. Online multiplayer, server synchronization, mobile controls, full original high-quality art, extensive pet catalog, balanced economy, anti-cheat, and a verified CrazyGames Web build still need implementation and testing. Local PlayerPrefs saves on that device/browser build only; it is not a cloud account save.
