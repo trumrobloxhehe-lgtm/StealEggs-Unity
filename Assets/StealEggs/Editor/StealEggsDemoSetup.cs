@@ -66,11 +66,11 @@ public static class StealEggsDemoSetup
         rival.AddComponent<StealEggsRivalAI>().rivalBase = orangeBase;
 
         Vector3[] positions = {
-            new Vector3(-7f,.8f,0f), new Vector3(-5f,.8f,2f), new Vector3(-3f,.8f,-2f),
-            new Vector3(-1f,.8f,1.5f), new Vector3(1f,.8f,-1.5f), new Vector3(3f,.8f,2f),
-            new Vector3(5f,.8f,-2f), new Vector3(7f,.8f,0f), new Vector3(9f,.8f,2.5f),
-            new Vector3(11f,.8f,-2.5f), new Vector3(14f,.8f,3f), new Vector3(16f,.8f,-3f),
-            new Vector3(15f,.8f,1f), new Vector3(12.5f,.8f,1.2f)
+            new Vector3(-7f,.45f,0f), new Vector3(-5f,.45f,2f), new Vector3(-3f,.45f,-2f),
+            new Vector3(-1f,.45f,1.5f), new Vector3(1f,.45f,-1.5f), new Vector3(3f,.45f,2f),
+            new Vector3(5f,.45f,-2f), new Vector3(7f,.45f,0f), new Vector3(9f,.45f,2.5f),
+            new Vector3(11f,.45f,-2.5f), new Vector3(14f,.45f,3f), new Vector3(16f,.45f,-3f),
+            new Vector3(15f,.45f,1f), new Vector3(12.5f,.45f,1.2f)
         };
         for (int i = 0; i < positions.Length; i++)
         {
