@@ -65,6 +65,45 @@ public static class StealEggsDemoSetup
         GameObject rival = Avatar("Rival Bot", new Vector3(13.5f, 0f, 0f), orange, pants, skin, hair, shoes, face);
         rival.AddComponent<StealEggsRivalAI>().rivalBase = orangeBase;
 
+        // Train speed on a treadmill to unlock the next zones.
+        Cube("SPEED TRAINING TREADMILL", new Vector3(-14f, .16f, -6f), new Vector3(6f, .32f, 4f), eggRare);
+        for (int i = 0; i < 5; i++)
+            Cube("Treadmill Belt Stripe", new Vector3(-16f + i, .34f, -6f), new Vector3(.1f, .04f, 3.4f), fence);
+        GameObject trainingTrigger = new GameObject("Training Area Trigger");
+        trainingTrigger.transform.position = new Vector3(-14f, 1.35f, -6f);
+        BoxCollider trainingCollider = trainingTrigger.AddComponent<BoxCollider>();
+        trainingCollider.isTrigger = true;
+        trainingCollider.size = new Vector3(5.8f, 2.6f, 3.8f);
+        trainingTrigger.AddComponent<StealEggsTrainingPad>();
+        WorldLabel("TRAIN SPEED HERE", new Vector3(-14f, 2.4f, -8.4f), 180f);
+
+        MakeSpeedGate("WOODLAND GATE", -4f, 10f, "Woodland", fence);
+        MakeSpeedGate("LAKE GATE", 3f, 35f, "Lake", fence);
+        MakeSpeedGate("ANCIENT GATE", 10f, 80f, "Ancient", fence);
+
+        StealEggsGuardianAI[] guardians = new StealEggsGuardianAI[4];
+        Vector3[] guardPositions = { new Vector3(-7f,0f,5f), new Vector3(0f,0f,-5f), new Vector3(7f,0f,5f), new Vector3(14f,0f,-5f) };
+        string[] guardNames = { "Mossback Guardian", "Tideclaw Guardian", "Dunebreak Guardian", "Frostmane Guardian" };
+        Material[] guardColors = { leaves, eggRare, eggGold, eggDiamond };
+        for (int i = 0; i < guardians.Length; i++)
+        {
+            GameObject guard = Avatar(guardNames[i], guardPositions[i], guardColors[i], pants, skin, hair, shoes, face);
+            guardians[i] = guard.AddComponent<StealEggsGuardianAI>();
+            guardians[i].guardianName = guardNames[i];
+            guardians[i].playerTarget = player.transform;
+            guardians[i].nest = guard.transform;
+            guardians[i].chaseSpeed = 4.8f + i * .35f;
+        }
+
+        GameObject petPlatform = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        petPlatform.name = "PET COLLECTION DISPLAY";
+        petPlatform.transform.position = new Vector3(-15f, .10f, 8f);
+        petPlatform.transform.localScale = new Vector3(6f, .10f, 4f);
+        petPlatform.GetComponent<Renderer>().sharedMaterial = eggGold;
+        GameObject petShowcase = new GameObject("Pet Showcase Point");
+        petShowcase.transform.position = new Vector3(-15f, .25f, 8f);
+        WorldLabel("YOUR HATCHED PETS", new Vector3(-15f, 1.8f, 10f), 180f);
+
         Vector3[] positions = {
             new Vector3(-7f,.45f,0f), new Vector3(-5f,.45f,2f), new Vector3(-3f,.45f,-2f),
             new Vector3(-1f,.45f,1.5f), new Vector3(1f,.45f,-1.5f), new Vector3(3f,.45f,2f),
@@ -84,7 +123,10 @@ public static class StealEggsDemoSetup
 
         GameObject managerObj = new GameObject("Steal Eggs Game Manager");
         StealEggsGameManager manager = managerObj.AddComponent<StealEggsGameManager>();
+        manager.player = player.transform;
         manager.playerHomeBase = blueBase; manager.rivalHomeBase = orangeBase;
+        manager.petShowcase = petShowcase.transform;
+        manager.guardians = guardians;
         BuildHUD(manager); BuildCamera(player.transform); BuildLight(); BuildEventSystem();
 
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
@@ -95,6 +137,26 @@ public static class StealEggsDemoSetup
             EditorUtility.DisplayDialog("Steal Eggs", "Enhanced third-person demo created!\n\nW/A/S/D or arrows: move\nRight mouse + drag: rotate camera\nSPACE: jump | SHIFT: sprint | Q: dash\nE: collect an egg\nBring eggs to BLUE base to earn coins\nEggs respawn; rare eggs pay more\nUse shop buttons to upgrade your character.\nProgress is saved locally.", "OK");
             Debug.Log("Steal Eggs demo created at " + ScenePath);
         }
+    }
+
+    private static void MakeSpeedGate(string gateName, float x, float requiredSpeed, string region, Material gateMaterial)
+    {
+        GameObject gate = Cube(gateName + " - NEED SPEED " + requiredSpeed, new Vector3(x, 1.2f, 0f), new Vector3(.7f, 2.4f, 38f), gateMaterial);
+        gate.GetComponent<Renderer>().material.color = new Color(1f, .14f, .12f);
+        StealEggsSpeedGate script = gate.AddComponent<StealEggsSpeedGate>();
+        script.requiredSpeed = requiredSpeed;
+        script.regionName = region;
+        WorldLabel("SPEED " + requiredSpeed, new Vector3(x, 3.1f, 0f), 90f);
+    }
+
+    private static void WorldLabel(string label, Vector3 position, float rotationY)
+    {
+        GameObject obj = new GameObject("Sign - " + label);
+        obj.transform.position = position;
+        obj.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
+        TextMesh text = obj.AddComponent<TextMesh>();
+        text.text = label; text.fontSize = 64; text.characterSize = .06f;
+        text.anchor = TextAnchor.MiddleCenter; text.alignment = TextAlignment.Center; text.color = Color.white;
     }
 
     private static GameObject Avatar(string name, Vector3 position, Material shirt, Material pants, Material skin, Material hair, Material shoes, Material face)
