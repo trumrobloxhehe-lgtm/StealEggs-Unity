@@ -21,6 +21,7 @@ public static class StealEggsDemoSetup
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
         EnsureFolder(Root + "/Scenes"); EnsureFolder(MaterialsPath);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        Random.InitState(20261018);
 
         Material grass = Mat("Grass", new Color(.22f, .48f, .24f));
         Material path = Mat("ArenaPath", new Color(.50f, .49f, .47f));
@@ -38,51 +39,72 @@ public static class StealEggsDemoSetup
         Material eggDiamond = Mat("EggDiamond", new Color(.72f, .42f, 1f));
         Material trunk = Mat("TreeTrunk", new Color(.32f, .18f, .08f));
         Material leaves = Mat("TreeLeaves", new Color(.12f, .34f, .16f));
+        Material woodland = Mat("WoodlandGround", new Color(.16f, .34f, .18f));
+        Material lakeside = Mat("LakesideGround", new Color(.70f, .60f, .36f));
+        Material ruins = Mat("AncientGround", new Color(.36f, .39f, .43f));
+        Material crystal = Mat("RegionCrystal", new Color(.22f, .76f, .95f));
+        Material flower = Mat("Wildflower", new Color(1f, .43f, .72f));
 
         GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        ground.name = "Arena Ground"; ground.transform.localScale = new Vector3(4f, 1f, 4f);
+        ground.name = "Arena Ground"; ground.transform.localScale = new Vector3(16f, 1f, 11f);
         ground.GetComponent<Renderer>().sharedMaterial = grass;
-        Cube("Center Path", new Vector3(0f, .015f, 0f), new Vector3(30f, .03f, 5f), path);
-        Cube("North Fence", new Vector3(0f, .7f, 20f), new Vector3(40f, 1.4f, .5f), fence);
-        Cube("South Fence", new Vector3(0f, .7f, -20f), new Vector3(40f, 1.4f, .5f), fence);
-        Cube("West Fence", new Vector3(-20f, .7f, 0f), new Vector3(.5f, 1.4f, 40f), fence);
-        Cube("East Fence", new Vector3(20f, .7f, 0f), new Vector3(.5f, 1.4f, 40f), fence);
-        foreach (int z in new int[] { -14, -8, 8, 14 })
+        GroundPatch("WOODLAND GROVE", new Vector3(-11.5f, .008f, 0f), new Vector3(3.3f, 1f, 10.9f), woodland);
+        GroundPatch("SUNLIT LAKESIDE", new Vector3(20.5f, .009f, 0f), new Vector3(3.1f, 1f, 10.9f), lakeside);
+        GroundPatch("ANCIENT RUINS", new Vector3(58f, .010f, 0f), new Vector3(4.4f, 1f, 10.9f), ruins);
+        Cube("Grand Stone Road", new Vector3(0f, .045f, 0f), new Vector3(148f, .07f, 8.5f), path);
+        Cube("North Perimeter Wall", new Vector3(0f, 1.1f, 54.5f), new Vector3(160f, 2.2f, .8f), fence);
+        Cube("South Perimeter Wall", new Vector3(0f, 1.1f, -54.5f), new Vector3(160f, 2.2f, .8f), fence);
+        Cube("West Perimeter Wall", new Vector3(-79.5f, 1.1f, 0f), new Vector3(.8f, 2.2f, 110f), fence);
+        Cube("East Perimeter Wall", new Vector3(79.5f, 1.1f, 0f), new Vector3(.8f, 2.2f, 110f), fence);
+
+        for (int x = -72; x <= 72; x += 12)
         {
-            Tree(new Vector3(-17f, 0f, z), trunk, leaves);
-            Tree(new Vector3(17f, 0f, z), trunk, leaves);
+            Tree(new Vector3(x, 0f, -44f), trunk, leaves, Random.Range(.8f, 1.25f));
+            Tree(new Vector3(x, 0f, 44f), trunk, leaves, Random.Range(.8f, 1.25f));
+        }
+        for (int i = 0; i < 46; i++)
+        {
+            float x = Random.Range(-73f, 73f);
+            float z = Random.Range(-39f, 39f);
+            if (Mathf.Abs(z) < 11f || Mathf.Abs(x + 65f) < 12f || Mathf.Abs(x - 65f) < 12f ||
+                Mathf.Abs(x + 28f) < 4.5f || Mathf.Abs(x - 5f) < 4.5f || Mathf.Abs(x - 36f) < 4.5f)
+                continue;
+            Material foliage = x < 5f ? leaves : x < 36f ? eggRare : ruins;
+            Tree(new Vector3(x, 0f, z), trunk, foliage, Random.Range(.65f, 1.15f));
+            if (i % 3 == 0) Rock(new Vector3(x + Random.Range(-2f, 2f), .15f, z + Random.Range(-2f, 2f)), i % 2 == 0 ? crystal : fence, Random.Range(.5f, 1.25f));
+            if (i % 4 == 0) FlowerPatch(new Vector3(x + 2f, 0f, z - 1.5f), flower);
         }
 
-        Transform blueBase = Base("BLUE HOME BASE", new Vector3(-15f, .12f, 0f), blue);
-        Transform orangeBase = Base("ORANGE RIVAL BASE", new Vector3(15f, .12f, 0f), orange);
-        GameObject player = Avatar("Player", new Vector3(-13.5f, 0f, 0f), blue, pants, skin, hair, shoes, face);
+        Transform blueBase = Base("BLUE HOME BASE", new Vector3(-65f, .12f, 0f), blue);
+        Transform orangeBase = Base("ORANGE RIVAL BASE", new Vector3(65f, .12f, 0f), orange);
+        GameObject player = Avatar("Player", new Vector3(-62f, 0f, 0f), blue, pants, skin, hair, shoes, face);
         player.AddComponent<StealEggsPlayerController>();
         TrailRenderer dashTrail = player.AddComponent<TrailRenderer>();
         dashTrail.time = .14f; dashTrail.startWidth = .35f; dashTrail.endWidth = .01f;
         Shader trailShader = Shader.Find("Sprites/Default");
         if (trailShader != null) dashTrail.material = new Material(trailShader);
         dashTrail.startColor = new Color(.2f, .8f, 1f, .8f); dashTrail.endColor = new Color(.2f, .8f, 1f, 0f);
-        GameObject rival = Avatar("Rival Bot", new Vector3(13.5f, 0f, 0f), orange, pants, skin, hair, shoes, face);
+        GameObject rival = Avatar("Rival Bot", new Vector3(62f, 0f, 0f), orange, pants, skin, hair, shoes, face);
         rival.AddComponent<StealEggsRivalAI>().rivalBase = orangeBase;
 
         // Train speed on a treadmill to unlock the next zones.
-        Cube("SPEED TRAINING TREADMILL", new Vector3(-14f, .16f, -6f), new Vector3(6f, .32f, 4f), eggRare);
-        for (int i = 0; i < 5; i++)
-            Cube("Treadmill Belt Stripe", new Vector3(-16f + i, .34f, -6f), new Vector3(.1f, .04f, 3.4f), fence);
+        Cube("PREMIUM SPEED TRAINING TREADMILL", new Vector3(-64f, .18f, -14f), new Vector3(10f, .36f, 6f), eggRare);
+        for (int i = 0; i < 7; i++)
+            Cube("Treadmill Belt Stripe", new Vector3(-68f + i * 1.3f, .39f, -14f), new Vector3(.12f, .04f, 5.2f), fence);
         GameObject trainingTrigger = new GameObject("Training Area Trigger");
-        trainingTrigger.transform.position = new Vector3(-14f, 1.35f, -6f);
+        trainingTrigger.transform.position = new Vector3(-64f, 1.4f, -14f);
         BoxCollider trainingCollider = trainingTrigger.AddComponent<BoxCollider>();
         trainingCollider.isTrigger = true;
-        trainingCollider.size = new Vector3(5.8f, 2.6f, 3.8f);
+        trainingCollider.size = new Vector3(9.6f, 2.8f, 5.7f);
         trainingTrigger.AddComponent<StealEggsTrainingPad>();
-        WorldLabel("TRAIN SPEED HERE", new Vector3(-14f, 2.4f, -8.4f), 180f);
+        WorldLabel("SPEED TRAINING ZONE", new Vector3(-64f, 3f, -17.5f), 180f);
 
-        MakeSpeedGate("WOODLAND GATE", -4f, 10f, "Woodland", fence);
-        MakeSpeedGate("LAKE GATE", 3f, 35f, "Lake", fence);
-        MakeSpeedGate("ANCIENT GATE", 10f, 80f, "Ancient", fence);
+        MakeSpeedGate("WOODLAND GATE", -28f, 10f, "Woodland", fence);
+        MakeSpeedGate("LAKE GATE", 5f, 35f, "Lake", fence);
+        MakeSpeedGate("ANCIENT GATE", 36f, 80f, "Ancient", fence);
 
         StealEggsGuardianAI[] guardians = new StealEggsGuardianAI[4];
-        Vector3[] guardPositions = { new Vector3(-7f,0f,5f), new Vector3(0f,0f,-5f), new Vector3(7f,0f,5f), new Vector3(14f,0f,-5f) };
+        Vector3[] guardPositions = { new Vector3(-47f,0f,16f), new Vector3(-12f,0f,-18f), new Vector3(22f,0f,16f), new Vector3(57f,0f,-18f) };
         string[] guardNames = { "Mossback Guardian", "Tideclaw Guardian", "Dunebreak Guardian", "Frostmane Guardian" };
         Material[] guardColors = { leaves, eggRare, eggGold, eggDiamond };
         for (int i = 0; i < guardians.Length; i++)
@@ -97,23 +119,28 @@ public static class StealEggsDemoSetup
 
         GameObject petPlatform = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         petPlatform.name = "PET COLLECTION DISPLAY";
-        petPlatform.transform.position = new Vector3(-15f, .10f, 8f);
-        petPlatform.transform.localScale = new Vector3(6f, .10f, 4f);
+        petPlatform.transform.position = new Vector3(-65f, .10f, 16f);
+        petPlatform.transform.localScale = new Vector3(10f, .12f, 7f);
         petPlatform.GetComponent<Renderer>().sharedMaterial = eggGold;
         GameObject petShowcase = new GameObject("Pet Showcase Point");
-        petShowcase.transform.position = new Vector3(-15f, .25f, 8f);
-        WorldLabel("YOUR HATCHED PETS", new Vector3(-15f, 1.8f, 10f), 180f);
+        petShowcase.transform.position = new Vector3(-65f, .25f, 16f);
+        WorldLabel("YOUR PET COLLECTION", new Vector3(-65f, 2.4f, 20f), 180f);
 
         Vector3[] positions = {
-            new Vector3(-7f,.45f,0f), new Vector3(-5f,.45f,2f), new Vector3(-3f,.45f,-2f),
-            new Vector3(-1f,.45f,1.5f), new Vector3(1f,.45f,-1.5f), new Vector3(3f,.45f,2f),
-            new Vector3(5f,.45f,-2f), new Vector3(7f,.45f,0f), new Vector3(9f,.45f,2.5f),
-            new Vector3(11f,.45f,-2.5f), new Vector3(14f,.45f,3f), new Vector3(16f,.45f,-3f),
-            new Vector3(15f,.45f,1f), new Vector3(12.5f,.45f,1.2f)
+            new Vector3(-75f,.48f,16f), new Vector3(-72f,.48f,-25f), new Vector3(-65f,.48f,29f),
+            new Vector3(-59f,.48f,-8f), new Vector3(-51f,.48f,-29f), new Vector3(-45f,.48f,24f),
+            new Vector3(-35f,.48f,1f), new Vector3(-24f,.48f,18f), new Vector3(-19f,.48f,-24f),
+            new Vector3(-13f,.48f,1f), new Vector3(-7f,.48f,31f), new Vector3(-2f,.48f,-32f),
+            new Vector3(7f,.48f,15f), new Vector3(12f,.48f,-18f), new Vector3(17f,.48f,29f),
+            new Vector3(23f,.48f,-7f), new Vector3(29f,.48f,20f), new Vector3(33f,.48f,-31f),
+            new Vector3(41f,.48f,-18f), new Vector3(45f,.48f,25f), new Vector3(51f,.48f,-30f),
+            new Vector3(56f,.48f,8f), new Vector3(60f,.48f,-18f), new Vector3(64f,.48f,26f),
+            new Vector3(70f,.48f,1f), new Vector3(62f,.48f,-4f), new Vector3(67f,.48f,7f),
+            new Vector3(72f,.48f,-9f), new Vector3(53f,.48f,36f), new Vector3(73f,.48f,-35f)
         };
         for (int i = 0; i < positions.Length; i++)
         {
-            bool onRivalSide = positions[i].x >= 12f;
+            bool onRivalSide = positions[i].x >= 58f;
             float roll = Random.value;
             StealEggRarity rarity = roll < .03f ? StealEggRarity.Diamond : roll < .13f ? StealEggRarity.Golden : roll < .35f ? StealEggRarity.Rare : StealEggRarity.Common;
             Material eggMat = rarity == StealEggRarity.Diamond ? eggDiamond : rarity == StealEggRarity.Golden ? eggGold : rarity == StealEggRarity.Rare ? eggRare : eggCommon;
@@ -141,12 +168,12 @@ public static class StealEggsDemoSetup
 
     private static void MakeSpeedGate(string gateName, float x, float requiredSpeed, string region, Material gateMaterial)
     {
-        GameObject gate = Cube(gateName + " - NEED SPEED " + requiredSpeed, new Vector3(x, 1.2f, 0f), new Vector3(.7f, 2.4f, 38f), gateMaterial);
+        GameObject gate = Cube(gateName + " - NEED SPEED " + requiredSpeed, new Vector3(x, 1.65f, 0f), new Vector3(.9f, 3.3f, 108f), gateMaterial);
         gate.GetComponent<Renderer>().material.color = new Color(1f, .14f, .12f);
         StealEggsSpeedGate script = gate.AddComponent<StealEggsSpeedGate>();
         script.requiredSpeed = requiredSpeed;
         script.regionName = region;
-        WorldLabel("SPEED " + requiredSpeed, new Vector3(x, 3.1f, 0f), 90f);
+        WorldLabel("REQUIRES SPEED " + requiredSpeed, new Vector3(x, 4.1f, 0f), 90f);
     }
 
     private static void WorldLabel(string label, Vector3 position, float rotationY)
@@ -193,27 +220,104 @@ public static class StealEggsDemoSetup
     }
     private static Transform Base(string name, Vector3 pos, Material mat)
     {
-        GameObject obj=GameObject.CreatePrimitive(PrimitiveType.Cylinder);obj.name=name;obj.transform.position=pos;obj.transform.localScale=new Vector3(5f,.12f,5f);obj.GetComponent<Renderer>().sharedMaterial=mat;return obj.transform;
+        GameObject obj = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        obj.name = name; obj.transform.position = pos; obj.transform.localScale = new Vector3(10f, .18f, 10f);
+        obj.GetComponent<Renderer>().sharedMaterial = mat;
+        GameObject marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        marker.name = name + " Inner Ring"; marker.transform.position = pos + new Vector3(0f, .20f, 0f);
+        marker.transform.localScale = new Vector3(7.2f, .035f, 7.2f);
+        marker.GetComponent<Renderer>().sharedMaterial = mat;
+        Collider markerCollider = marker.GetComponent<Collider>();
+        if (markerCollider != null) Object.DestroyImmediate(markerCollider);
+        return obj.transform;
     }
     private static GameObject Cube(string name, Vector3 pos, Vector3 scale, Material mat)
     {
         GameObject obj=GameObject.CreatePrimitive(PrimitiveType.Cube);obj.name=name;obj.transform.position=pos;obj.transform.localScale=scale;obj.GetComponent<Renderer>().sharedMaterial=mat;return obj;
     }
-    private static void Tree(Vector3 pos, Material trunkMat, Material leafMat)
+    private static void GroundPatch(string name, Vector3 position, Vector3 scale, Material material)
     {
-        GameObject trunk=GameObject.CreatePrimitive(PrimitiveType.Cylinder);trunk.name="Tree Trunk";trunk.transform.position=pos+new Vector3(0f,.85f,0f);trunk.transform.localScale=new Vector3(.45f,.85f,.45f);trunk.GetComponent<Renderer>().sharedMaterial=trunkMat;
-        GameObject crown=GameObject.CreatePrimitive(PrimitiveType.Sphere);crown.name="Tree Crown";crown.transform.position=pos+new Vector3(0f,2.1f,0f);crown.transform.localScale=new Vector3(2.1f,2.2f,2.1f);crown.GetComponent<Renderer>().sharedMaterial=leafMat;
+        GameObject patch = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        patch.name = name; patch.transform.position = position; patch.transform.localScale = scale;
+        patch.GetComponent<Renderer>().sharedMaterial = material;
+        Collider collider = patch.GetComponent<Collider>();
+        if (collider != null) Object.DestroyImmediate(collider);
+    }
+
+    private static void Tree(Vector3 pos, Material trunkMat, Material leafMat, float scale = 1f)
+    {
+        GameObject trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        trunk.name = "Tree Trunk";
+        trunk.transform.position = pos + new Vector3(0f, .85f * scale, 0f);
+        trunk.transform.localScale = new Vector3(.45f * scale, .85f * scale, .45f * scale);
+        trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
+        GameObject crown = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        crown.name = "Tree Crown";
+        crown.transform.position = pos + new Vector3(0f, 2.1f * scale, 0f);
+        crown.transform.localScale = new Vector3(2.1f * scale, 2.2f * scale, 2.1f * scale);
+        crown.GetComponent<Renderer>().sharedMaterial = leafMat;
+    }
+
+    private static void Rock(Vector3 pos, Material material, float scale)
+    {
+        GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        rock.name = "Decorative Boulder";
+        rock.transform.position = pos;
+        rock.transform.localScale = new Vector3(scale * 1.5f, scale, scale * 1.2f);
+        rock.transform.rotation = Quaternion.Euler(Random.Range(-12f, 12f), Random.Range(0f, 360f), Random.Range(-12f, 12f));
+        rock.GetComponent<Renderer>().sharedMaterial = material;
+    }
+
+    private static void FlowerPatch(Vector3 pos, Material material)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            Vector3 offset = new Vector3(Random.Range(-1.2f, 1.2f), .12f, Random.Range(-1.2f, 1.2f));
+            GameObject bloom = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            bloom.name = "Wildflower";
+            bloom.transform.position = pos + offset;
+            bloom.transform.localScale = new Vector3(.16f, .16f, .16f);
+            bloom.GetComponent<Renderer>().sharedMaterial = material;
+            Collider col = bloom.GetComponent<Collider>();
+            if (col != null) Object.DestroyImmediate(col);
+        }
     }
     private static void BuildCamera(Transform target)
     {
-        GameObject obj=new GameObject("Main Camera");obj.tag="MainCamera";Camera cam=obj.AddComponent<Camera>();cam.nearClipPlane=.1f;cam.farClipPlane=150f;cam.fieldOfView=60f;obj.AddComponent<AudioListener>();
-        StealEggsThirdPersonCamera orbit=obj.AddComponent<StealEggsThirdPersonCamera>();orbit.target=target;orbit.distance=7.5f;orbit.focusOffset=new Vector3(0f,1.35f,0f);
-        obj.transform.position=target.position+new Vector3(0f,3.5f,-7f);obj.transform.LookAt(target.position+new Vector3(0f,1.35f,0f));
+        GameObject obj = new GameObject("Main Camera");
+        obj.tag = "MainCamera";
+        Camera cam = obj.AddComponent<Camera>();
+        cam.nearClipPlane = .1f; cam.farClipPlane = 360f; cam.fieldOfView = 64f;
+        cam.allowHDR = true; cam.allowMSAA = true;
+        obj.AddComponent<AudioListener>();
+        StealEggsThirdPersonCamera orbit = obj.AddComponent<StealEggsThirdPersonCamera>();
+        orbit.target = target; orbit.distance = 9.2f; orbit.focusOffset = new Vector3(0f, 1.55f, 0f);
+        obj.transform.position = target.position + new Vector3(0f, 4.5f, -8.5f);
+        obj.transform.LookAt(target.position + new Vector3(0f, 1.55f, 0f));
     }
     private static void BuildLight()
     {
-        GameObject obj=new GameObject("Sun Light");Light light=obj.AddComponent<Light>();light.type=LightType.Directional;light.intensity=1.25f;obj.transform.rotation=Quaternion.Euler(50f,-30f,0f);
-        RenderSettings.ambientMode=AmbientMode.Trilight;RenderSettings.ambientSkyColor=new Color(.55f,.62f,.72f);RenderSettings.ambientEquatorColor=new Color(.36f,.39f,.34f);RenderSettings.ambientGroundColor=new Color(.22f,.20f,.17f);
+        // Apply the highest available built-in quality level; actual maximum still depends on PC/GPU and URP assets.
+        if (QualitySettings.names.Length > 0) QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1, true);
+        QualitySettings.antiAliasing = 4;
+        QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
+        QualitySettings.shadows = ShadowQuality.All;
+        QualitySettings.shadowDistance = 180f;
+        QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
+        QualitySettings.lodBias = 2f;
+        GameObject obj = new GameObject("Sun Light");
+        Light light = obj.AddComponent<Light>();
+        light.type = LightType.Directional; light.intensity = 1.45f; light.shadows = LightShadows.Soft;
+        light.shadowStrength = .82f; light.shadowResolution = LightShadowResolution.VeryHigh;
+        light.bounceIntensity = 1.1f; light.color = new Color(1f, .94f, .82f);
+        obj.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
+        RenderSettings.ambientMode = AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor = new Color(.54f, .69f, .86f);
+        RenderSettings.ambientEquatorColor = new Color(.42f, .48f, .39f);
+        RenderSettings.ambientGroundColor = new Color(.20f, .19f, .16f);
+        RenderSettings.ambientIntensity = 1.15f;
+        RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential;
+        RenderSettings.fogColor = new Color(.65f, .76f, .83f); RenderSettings.fogDensity = .0008f;
     }
     private static void BuildEventSystem()
     {
@@ -249,9 +353,23 @@ public static class StealEggsDemoSetup
     }
     private static Material Mat(string name,Color color)
     {
-        string path=MaterialsPath+"/"+name+".mat";Material existing=AssetDatabase.LoadAssetAtPath<Material>(path);if(existing!=null){existing.color=color;EditorUtility.SetDirty(existing);return existing;}
-        Shader shader=Shader.Find("Universal Render Pipeline/Lit");if(shader==null)shader=Shader.Find("Standard");Material m=new Material(shader);m.name=name;m.color=color;AssetDatabase.CreateAsset(m,path);return m;
+        string path = MaterialsPath + "/" + name + ".mat";
+        Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (existing != null) { existing.color = color; TuneMaterial(existing, name); EditorUtility.SetDirty(existing); return existing; }
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+        Material m = new Material(shader); m.name = name; m.color = color; TuneMaterial(m, name);
+        AssetDatabase.CreateAsset(m, path); return m;
     }
+    private static void TuneMaterial(Material material, string materialName)
+    {
+        bool premium = materialName.Contains("Gold") || materialName.Contains("Diamond") ||
+                      materialName.Contains("Rare") || materialName.Contains("Crystal");
+        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", premium ? .42f : .04f);
+        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", premium ? .78f : .34f);
+        if (materialName.Contains("Gold") && material.HasProperty("_Metallic")) material.SetFloat("_Metallic", .72f);
+    }
+
     private static void EnsureFolder(string folder)
     {
         if(AssetDatabase.IsValidFolder(folder))return;string parent=Path.GetDirectoryName(folder).Replace("\\","/");string name=Path.GetFileName(folder);if(!AssetDatabase.IsValidFolder(parent))EnsureFolder(parent);AssetDatabase.CreateFolder(parent,name);
