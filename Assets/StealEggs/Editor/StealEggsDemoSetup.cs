@@ -8,18 +8,20 @@ using UnityEngine.Rendering;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using System.IO;
+using System.Collections.Generic;
 
 public static class StealEggsDemoSetup
 {
     private const string Root = "Assets/StealEggs";
     private const string ScenePath = Root + "/Scenes/StealEggsDemo.unity";
     private const string MaterialsPath = Root + "/Materials";
+    private const string TexturesPath = Root + "/Textures";
 
     [MenuItem("Steal Eggs/Build Demo Arena")]
     public static void BuildDemoArena()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-        EnsureFolder(Root + "/Scenes"); EnsureFolder(MaterialsPath);
+        EnsureFolder(Root + "/Scenes"); EnsureFolder(MaterialsPath); EnsureFolder(TexturesPath);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         Random.InitState(20261018);
 
@@ -44,6 +46,14 @@ public static class StealEggsDemoSetup
         Material ruins = Mat("AncientGround", new Color(.36f, .39f, .43f));
         Material crystal = Mat("RegionCrystal", new Color(.22f, .76f, .95f));
         Material flower = Mat("Wildflower", new Color(1f, .43f, .72f));
+
+        // Procedural surface maps add natural color breakup without external packages.
+        ApplyNaturalTexture(grass, "GrassField", new Color(.055f, .15f, .065f), new Color(.22f, .34f, .12f), new Vector2(32f, 24f), false);
+        ApplyNaturalTexture(path, "WornStonePath", new Color(.22f, .22f, .20f), new Color(.48f, .45f, .39f), new Vector2(34f, 3f), false);
+        ApplyNaturalTexture(trunk, "BarkGrooves", new Color(.09f, .035f, .015f), new Color(.34f, .17f, .065f), new Vector2(2f, 1f), true);
+        ApplyNaturalTexture(woodland, "ForestSoil", new Color(.045f, .13f, .045f), new Color(.19f, .30f, .095f), new Vector2(12f, 9f), false);
+        ApplyNaturalTexture(lakeside, "DryLakesideSand", new Color(.34f, .25f, .12f), new Color(.76f, .65f, .39f), new Vector2(14f, 8f), false);
+        ApplyNaturalTexture(ruins, "AncientWeatheredStone", new Color(.16f, .17f, .17f), new Color(.48f, .47f, .43f), new Vector2(16f, 8f), false);
 
         GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
         ground.name = "Arena Ground"; ground.transform.localScale = new Vector3(16f, 1f, 11f);
@@ -74,6 +84,8 @@ public static class StealEggsDemoSetup
             if (i % 3 == 0) Rock(new Vector3(x + Random.Range(-2f, 2f), .15f, z + Random.Range(-2f, 2f)), i % 2 == 0 ? crystal : fence, Random.Range(.5f, 1.25f));
             if (i % 4 == 0) FlowerPatch(new Vector3(x + 2f, 0f, z - 1.5f), flower);
         }
+
+        CreateGrassDetails();
 
         Transform blueBase = Base("BLUE HOME BASE", new Vector3(-65f, .12f, 0f), blue);
         Transform orangeBase = Base("ORANGE RIVAL BASE", new Vector3(65f, .12f, 0f), orange);
@@ -188,30 +200,118 @@ public static class StealEggsDemoSetup
 
     private static GameObject Avatar(string name, Vector3 position, Material shirt, Material pants, Material skin, Material hair, Material shoes, Material face)
     {
-        GameObject root = new GameObject(name); root.transform.position = position;
-        CharacterController cc = root.AddComponent<CharacterController>(); cc.height = 2.35f; cc.radius = .38f; cc.center = new Vector3(0f, 1.16f, 0f); cc.stepOffset = .3f;
-        Transform torso = Part("Torso", root.transform, new Vector3(0f,1.39f,0f), new Vector3(.78f,.80f,.42f), shirt);
-        Transform head = Part("Head", root.transform, new Vector3(0f,2.02f,0f), new Vector3(.62f,.62f,.62f), skin);
-        Part("Hair", head, new Vector3(0f,.39f,-.01f), new Vector3(1.08f,.28f,1.08f), hair);
-        Part("Left Eye", head, new Vector3(-.24f,.04f,.51f), new Vector3(.12f,.14f,.04f), face);
-        Part("Right Eye", head, new Vector3(.24f,.04f,.51f), new Vector3(.12f,.14f,.04f), face);
-        Part("Smile", head, new Vector3(0f,-.21f,.51f), new Vector3(.25f,.04f,.04f), face);
-        Transform la = Pivot("Left Arm Pivot", root.transform, new Vector3(-.51f,1.68f,0f)); Part("Left Arm", la, new Vector3(0f,-.34f,0f), new Vector3(.28f,.69f,.32f), skin);
-        Transform ra = Pivot("Right Arm Pivot", root.transform, new Vector3(.51f,1.68f,0f)); Part("Right Arm", ra, new Vector3(0f,-.34f,0f), new Vector3(.28f,.69f,.32f), skin);
-        Transform ll = Pivot("Left Leg Pivot", root.transform, new Vector3(-.20f,.88f,0f)); Part("Left Leg", ll, new Vector3(0f,-.32f,0f), new Vector3(.32f,.62f,.35f), pants); Part("Left Shoe", ll, new Vector3(0f,-.70f,.075f), new Vector3(.36f,.18f,.46f), shoes);
-        Transform rl = Pivot("Right Leg Pivot", root.transform, new Vector3(.20f,.88f,0f)); Part("Right Leg", rl, new Vector3(0f,-.32f,0f), new Vector3(.32f,.62f,.35f), pants); Part("Right Shoe", rl, new Vector3(0f,-.70f,.075f), new Vector3(.36f,.18f,.46f), shoes);
+        GameObject root = new GameObject(name);
+        root.transform.position = position;
+
+        CharacterController cc = root.AddComponent<CharacterController>();
+        cc.height = 2.30f;
+        cc.radius = .31f;
+        cc.center = new Vector3(0f, 1.15f, 0f);
+        cc.stepOffset = .28f;
+
+        Material trim = Mat("ClothingTrim_" + name.Replace(" ", "_"), Color.Lerp(shirt.color, new Color(.025f, .035f, .045f), .40f));
+        Material highlight = Mat("ClothingHighlight_" + name.Replace(" ", "_"), Color.Lerp(shirt.color, Color.white, .24f));
+        Material eyeWhite = Mat("EyeWhite", new Color(.92f, .91f, .83f));
+        Material sole = Mat("ShoeSole", new Color(.035f, .04f, .045f));
+        Material buckle = Mat("BeltBuckle_" + name.Replace(" ", "_"), new Color(.74f, .56f, .22f));
+
+        // Rounded torso, neck and shaped head replace the old cuboid mannequin.
+        Transform torso = ShapePart("Torso", root.transform, new Vector3(0f, 1.42f, 0f), new Vector3(.31f, .43f, .205f), shirt, PrimitiveType.Capsule);
+        ShapePart("Neck", root.transform, new Vector3(0f, 1.87f, .005f), new Vector3(.105f, .13f, .105f), skin, PrimitiveType.Cylinder);
+        Transform head = ShapePart("Head", root.transform, new Vector3(0f, 2.16f, .015f), new Vector3(.255f, .315f, .225f), skin, PrimitiveType.Sphere);
+
+        // Layered hair clumps give characters different silhouettes.
+        int hairstyle = Mathf.Abs(name.GetHashCode()) % 3;
+        ShapePart("Hair Cap", root.transform, new Vector3(0f, 2.405f, -.005f), new Vector3(.27f, .13f, .24f), hair, PrimitiveType.Sphere);
+        ShapePart("Hair Fringe L", root.transform, new Vector3(-.115f, 2.355f, .177f), new Vector3(.105f, .10f, .09f), hair, PrimitiveType.Sphere);
+        ShapePart("Hair Fringe R", root.transform, new Vector3(.06f, 2.365f, .19f), new Vector3(.12f, .085f, .075f), hair, PrimitiveType.Sphere);
+        ShapePart("Side Hair L", root.transform, new Vector3(-.238f, 2.19f, -.005f), new Vector3(.065f, .18f, .12f), hair, PrimitiveType.Sphere);
+        ShapePart("Side Hair R", root.transform, new Vector3(.238f, 2.19f, -.005f), new Vector3(.065f, .18f, .12f), hair, PrimitiveType.Sphere);
+        if (hairstyle == 1)
+        {
+            ShapePart("Back Hair", root.transform, new Vector3(0f, 2.17f, -.19f), new Vector3(.23f, .27f, .12f), hair, PrimitiveType.Sphere);
+            ShapePart("Long Fringe", root.transform, new Vector3(-.04f, 2.29f, .20f), new Vector3(.13f, .16f, .07f), hair, PrimitiveType.Sphere);
+        }
+        else if (hairstyle == 2)
+        {
+            ShapePart("Ponytail", root.transform, new Vector3(.12f, 2.20f, -.25f), new Vector3(.10f, .22f, .10f), hair, PrimitiveType.Sphere);
+            ShapePart("Top Curl", root.transform, new Vector3(.045f, 2.48f, -.045f), new Vector3(.12f, .09f, .12f), hair, PrimitiveType.Sphere);
+        }
+
+        // Facial features are positioned on the front side (+Z) of the head.
+        ShapePart("Left Ear", root.transform, new Vector3(-.254f, 2.15f, 0f), new Vector3(.065f, .085f, .06f), skin, PrimitiveType.Sphere);
+        ShapePart("Right Ear", root.transform, new Vector3(.254f, 2.15f, 0f), new Vector3(.065f, .085f, .06f), skin, PrimitiveType.Sphere);
+        ShapePart("Left Eye White", root.transform, new Vector3(-.092f, 2.175f, .218f), new Vector3(.050f, .064f, .025f), eyeWhite, PrimitiveType.Sphere);
+        ShapePart("Right Eye White", root.transform, new Vector3(.092f, 2.175f, .218f), new Vector3(.050f, .064f, .025f), eyeWhite, PrimitiveType.Sphere);
+        ShapePart("Left Pupil", root.transform, new Vector3(-.086f, 2.174f, .241f), new Vector3(.022f, .036f, .014f), face, PrimitiveType.Sphere);
+        ShapePart("Right Pupil", root.transform, new Vector3(.098f, 2.174f, .241f), new Vector3(.022f, .036f, .014f), face, PrimitiveType.Sphere);
+        ShapePart("Left Brow", root.transform, new Vector3(-.092f, 2.245f, .214f), new Vector3(.060f, .018f, .025f), hair, PrimitiveType.Cube);
+        ShapePart("Right Brow", root.transform, new Vector3(.092f, 2.245f, .214f), new Vector3(.060f, .018f, .025f), hair, PrimitiveType.Cube);
+        ShapePart("Nose", root.transform, new Vector3(0f, 2.115f, .246f), new Vector3(.038f, .050f, .035f), skin, PrimitiveType.Sphere);
+        ShapePart("Mouth", root.transform, new Vector3(0f, 2.065f, .226f), new Vector3(.068f, .012f, .012f), face, PrimitiveType.Cube);
+
+        // Clothing accents, belt, cuffs and pack make the body read as layered clothing.
+        ShapePart("Shirt Collar", root.transform, new Vector3(0f, 1.825f, .13f), new Vector3(.12f, .055f, .045f), highlight, PrimitiveType.Sphere);
+        ShapePart("Belt", root.transform, new Vector3(0f, 1.08f, 0f), new Vector3(.47f, .065f, .30f), trim, PrimitiveType.Cube);
+        ShapePart("Belt Buckle", root.transform, new Vector3(0f, 1.08f, .154f), new Vector3(.075f, .055f, .018f), buckle, PrimitiveType.Cube);
+        ShapePart("Backpack", root.transform, new Vector3(0f, 1.39f, -.235f), new Vector3(.25f, .30f, .13f), trim, PrimitiveType.Capsule);
+
+        Transform la = Pivot("Left Arm Pivot", root.transform, new Vector3(-.365f, 1.68f, 0f));
+        Transform ra = Pivot("Right Arm Pivot", root.transform, new Vector3(.365f, 1.68f, 0f));
+        ShapePart("Left Shoulder", la, Vector3.zero, new Vector3(.17f, .17f, .17f), shirt, PrimitiveType.Sphere);
+        ShapePart("Right Shoulder", ra, Vector3.zero, new Vector3(.17f, .17f, .17f), shirt, PrimitiveType.Sphere);
+        ShapePart("Left Upper Arm", la, new Vector3(0f, -.19f, 0f), new Vector3(.125f, .225f, .125f), shirt, PrimitiveType.Capsule);
+        ShapePart("Right Upper Arm", ra, new Vector3(0f, -.19f, 0f), new Vector3(.125f, .225f, .125f), shirt, PrimitiveType.Capsule);
+        ShapePart("Left Forearm", la, new Vector3(0f, -.445f, .005f), new Vector3(.105f, .20f, .105f), skin, PrimitiveType.Capsule);
+        ShapePart("Right Forearm", ra, new Vector3(0f, -.445f, .005f), new Vector3(.105f, .20f, .105f), skin, PrimitiveType.Capsule);
+        ShapePart("Left Cuff", la, new Vector3(0f, -.34f, .005f), new Vector3(.11f, .055f, .11f), highlight, PrimitiveType.Cylinder);
+        ShapePart("Right Cuff", ra, new Vector3(0f, -.34f, .005f), new Vector3(.11f, .055f, .11f), highlight, PrimitiveType.Cylinder);
+        ShapePart("Left Hand", la, new Vector3(0f, -.625f, .025f), new Vector3(.105f, .12f, .09f), skin, PrimitiveType.Sphere);
+        ShapePart("Right Hand", ra, new Vector3(0f, -.625f, .025f), new Vector3(.105f, .12f, .09f), skin, PrimitiveType.Sphere);
+
+        Transform ll = Pivot("Left Leg Pivot", root.transform, new Vector3(-.17f, .98f, 0f));
+        Transform rl = Pivot("Right Leg Pivot", root.transform, new Vector3(.17f, .98f, 0f));
+        ShapePart("Left Thigh", ll, new Vector3(0f, -.19f, 0f), new Vector3(.15f, .225f, .15f), pants, PrimitiveType.Capsule);
+        ShapePart("Right Thigh", rl, new Vector3(0f, -.19f, 0f), new Vector3(.15f, .225f, .15f), pants, PrimitiveType.Capsule);
+        ShapePart("Left Shin", ll, new Vector3(0f, -.475f, .005f), new Vector3(.12f, .205f, .125f), pants, PrimitiveType.Capsule);
+        ShapePart("Right Shin", rl, new Vector3(0f, -.475f, .005f), new Vector3(.12f, .205f, .125f), pants, PrimitiveType.Capsule);
+        ShapePart("Left Shoe Sole", ll, new Vector3(0f, -.815f, .055f), new Vector3(.18f, .06f, .27f), sole, PrimitiveType.Sphere);
+        ShapePart("Right Shoe Sole", rl, new Vector3(0f, -.815f, .055f), new Vector3(.18f, .06f, .27f), sole, PrimitiveType.Sphere);
+        ShapePart("Left Shoe", ll, new Vector3(0f, -.78f, .075f), new Vector3(.17f, .105f, .245f), shoes, PrimitiveType.Sphere);
+        ShapePart("Right Shoe", rl, new Vector3(0f, -.78f, .075f), new Vector3(.17f, .105f, .245f), shoes, PrimitiveType.Sphere);
+
         StealEggsCharacterAnimation anim = root.AddComponent<StealEggsCharacterAnimation>();
-        anim.leftArmPivot=la; anim.rightArmPivot=ra; anim.leftLegPivot=ll; anim.rightLegPivot=rl; anim.torso=torso; anim.head=head; anim.CacheRestPose();
+        anim.leftArmPivot = la; anim.rightArmPivot = ra;
+        anim.leftLegPivot = ll; anim.rightLegPivot = rl;
+        anim.torso = torso; anim.head = head; anim.CacheRestPose();
         return root;
     }
+
+    private static Transform ShapePart(string name, Transform parent, Vector3 pos, Vector3 scale, Material mat, PrimitiveType type)
+    {
+        GameObject obj = GameObject.CreatePrimitive(type);
+        obj.name = name;
+        obj.transform.SetParent(parent, false);
+        obj.transform.localPosition = pos;
+        obj.transform.localScale = scale;
+        obj.GetComponent<Renderer>().sharedMaterial = mat;
+        Collider collider = obj.GetComponent<Collider>();
+        if (collider != null) Object.DestroyImmediate(collider);
+        return obj.transform;
+    }
+
     private static Transform Part(string name, Transform parent, Vector3 pos, Vector3 scale, Material mat)
     {
-        GameObject obj=GameObject.CreatePrimitive(PrimitiveType.Cube); obj.name=name; obj.transform.SetParent(parent,false); obj.transform.localPosition=pos; obj.transform.localScale=scale; obj.GetComponent<Renderer>().sharedMaterial=mat;
-        Collider c=obj.GetComponent<Collider>(); if(c!=null)Object.DestroyImmediate(c); return obj.transform;
+        return ShapePart(name, parent, pos, scale, mat,
+            name == "Head" || name.Contains("Eye") || name.Contains("Smile") ? PrimitiveType.Sphere : PrimitiveType.Capsule);
     }
+
     private static Transform Pivot(string name, Transform parent, Vector3 pos)
     {
-        GameObject obj=new GameObject(name);obj.transform.SetParent(parent,false);obj.transform.localPosition=pos;return obj.transform;
+        GameObject obj = new GameObject(name);
+        obj.transform.SetParent(parent, false);
+        obj.transform.localPosition = pos;
+        return obj.transform;
     }
     private static void Egg(string name, Vector3 pos, bool rivalSide, Material mat, StealEggRarity rarity, int value)
     {
@@ -246,40 +346,154 @@ public static class StealEggsDemoSetup
 
     private static void Tree(Vector3 pos, Material trunkMat, Material leafMat, float scale = 1f)
     {
+        GameObject treeRoot = new GameObject("Natural Broadleaf Tree");
+        treeRoot.transform.position = pos;
+        treeRoot.transform.localScale = Vector3.one * scale;
+        treeRoot.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+
+        Material barkLight = Mat("Bark_" + trunkMat.name + "_Light", new Color(.40f, .22f, .10f));
+        Material leafLight = Mat("Foliage_" + leafMat.name + "_Sunlit", Color.Lerp(leafMat.color, Color.white, .14f));
+        Material leafShadow = Mat("Foliage_" + leafMat.name + "_Shadow", Color.Lerp(leafMat.color, new Color(.035f, .09f, .025f), .22f));
+
+        float height = Random.Range(3.2f, 4.5f);
         GameObject trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        trunk.name = "Tree Trunk";
-        trunk.transform.position = pos + new Vector3(0f, .85f * scale, 0f);
-        trunk.transform.localScale = new Vector3(.45f * scale, .85f * scale, .45f * scale);
+        trunk.name = "Rough Bark Trunk";
+        trunk.transform.SetParent(treeRoot.transform, false);
+        trunk.transform.localPosition = new Vector3(0f, height * .45f, 0f);
+        trunk.transform.localScale = new Vector3(Random.Range(.19f, .27f), height * .45f, Random.Range(.19f, .27f));
+        trunk.transform.localRotation = Quaternion.Euler(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f));
         trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
-        GameObject crown = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        crown.name = "Tree Crown";
-        crown.transform.position = pos + new Vector3(0f, 2.1f * scale, 0f);
-        crown.transform.localScale = new Vector3(2.1f * scale, 2.2f * scale, 2.1f * scale);
-        crown.GetComponent<Renderer>().sharedMaterial = leafMat;
+        RemoveCollider(trunk);
+
+        // Flared roots and branches break the straight-cylinder silhouette.
+        for (int i = 0; i < 4; i++)
+        {
+            float angle = i * 90f + Random.Range(-16f, 16f);
+            Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+            Vector3 start = new Vector3(0f, .35f, 0f);
+            Vector3 end = direction * Random.Range(.65f, .95f) + new Vector3(0f, .10f, 0f);
+            CreateBranch(treeRoot.transform, start, end, .11f, barkLight, "Flared Tree Root");
+        }
+
+        int branchCount = Random.Range(3, 5);
+        for (int i = 0; i < branchCount; i++)
+        {
+            float height01 = Random.Range(.42f, .76f);
+            float angle = i * (360f / branchCount) + Random.Range(-20f, 20f);
+            Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+            Vector3 start = new Vector3(0f, height * height01, 0f);
+            Vector3 end = start + direction * Random.Range(.85f, 1.25f) + Vector3.up * Random.Range(.35f, .8f);
+            CreateBranch(treeRoot.transform, start, end, .075f, barkLight, "Branch");
+        }
+
+        // Layered, irregular leaf clusters create a full canopy instead of a single sphere.
+        int clusterCount = Random.Range(8, 12);
+        for (int i = 0; i < clusterCount; i++)
+        {
+            float ring = i % 3;
+            float angle = i * 137.5f + Random.Range(-18f, 18f);
+            float radius = ring == 0 ? .25f : ring == 1 ? .80f : 1.08f;
+            Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, 0f, 0f);
+            float leafSize = Random.Range(.72f, 1.18f);
+            GameObject cluster = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            cluster.name = "Leaf Cluster";
+            cluster.transform.SetParent(treeRoot.transform, false);
+            cluster.transform.localPosition = new Vector3(offset.x, height * .77f + Random.Range(-.35f, .45f), offset.z);
+            cluster.transform.localScale = new Vector3(leafSize * 1.14f, leafSize * Random.Range(.72f, 1.08f), leafSize);
+            cluster.transform.localRotation = Quaternion.Euler(Random.Range(-12f, 12f), angle, Random.Range(-12f, 12f));
+            cluster.GetComponent<Renderer>().sharedMaterial = i % 4 == 0 ? leafShadow : (i % 3 == 0 ? leafLight : leafMat);
+            RemoveCollider(cluster);
+        }
+
+        // Low foliage helps the trunk blend into the ground.
+        for (int i = 0; i < 3; i++)
+        {
+            float angle = i * 120f + Random.Range(-25f, 25f);
+            Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(.7f, 0f, 0f);
+            GameObject shrub = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            shrub.name = "Tree Base Shrub";
+            shrub.transform.position = pos + new Vector3(offset.x, .32f * scale, offset.z);
+            shrub.transform.localScale = new Vector3(.72f * scale, .48f * scale, .72f * scale);
+            shrub.GetComponent<Renderer>().sharedMaterial = i == 0 ? leafShadow : leafMat;
+            RemoveCollider(shrub);
+        }
     }
 
+    private static void CreateBranch(Transform parent, Vector3 start, Vector3 end, float thickness, Material material, string objectName)
+    {
+        Vector3 delta = end - start;
+        GameObject branch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        branch.name = objectName;
+        branch.transform.SetParent(parent, false);
+        branch.transform.localPosition = (start + end) * .5f;
+        branch.transform.localRotation = Quaternion.FromToRotation(Vector3.up, delta.normalized);
+        branch.transform.localScale = new Vector3(thickness, delta.magnitude * .5f, thickness);
+        branch.GetComponent<Renderer>().sharedMaterial = material;
+        RemoveCollider(branch);
+    }
+
+    private static void RemoveCollider(GameObject obj)
+    {
+        Collider collider = obj.GetComponent<Collider>();
+        if (collider != null) Object.DestroyImmediate(collider);
+    }
     private static void Rock(Vector3 pos, Material material, float scale)
     {
-        GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        rock.name = "Decorative Boulder";
-        rock.transform.position = pos;
-        rock.transform.localScale = new Vector3(scale * 1.5f, scale, scale * 1.2f);
-        rock.transform.rotation = Quaternion.Euler(Random.Range(-12f, 12f), Random.Range(0f, 360f), Random.Range(-12f, 12f));
-        rock.GetComponent<Renderer>().sharedMaterial = material;
-    }
+        GameObject root = new GameObject("Weathered Boulder Cluster");
+        root.transform.position = pos;
+        root.transform.rotation = Quaternion.Euler(Random.Range(-18f, 18f), Random.Range(0f, 360f), Random.Range(-16f, 16f));
 
+        Material stoneLight = Mat("Stone_" + material.name + "_Light", Color.Lerp(material.color, new Color(.63f, .61f, .55f), .22f));
+        Material stoneDark = Mat("Stone_" + material.name + "_Shadow", Color.Lerp(material.color, Color.black, .22f));
+
+        int count = Random.Range(2, 4);
+        for (int i = 0; i < count; i++)
+        {
+            GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            rock.name = "Irregular Rock";
+            rock.transform.SetParent(root.transform, false);
+            rock.transform.localPosition = new Vector3(Random.Range(-.28f, .28f), Random.Range(-.03f, .12f), Random.Range(-.22f, .22f)) * scale;
+            rock.transform.localScale = new Vector3(scale * Random.Range(.85f, 1.45f), scale * Random.Range(.55f, .94f), scale * Random.Range(.75f, 1.3f));
+            rock.transform.localRotation = Quaternion.Euler(Random.Range(-25f, 25f), Random.Range(0f, 360f), Random.Range(-22f, 22f));
+            rock.GetComponent<Renderer>().sharedMaterial = i == 0 ? material : (i % 2 == 0 ? stoneLight : stoneDark);
+            RemoveCollider(rock);
+        }
+    }
     private static void FlowerPatch(Vector3 pos, Material material)
     {
+        Material stemMaterial = Mat("WildflowerStem", new Color(.08f, .22f, .055f));
+        Material flowerCenter = Mat("WildflowerCenter", new Color(.92f, .68f, .13f));
         for (int i = 0; i < 5; i++)
         {
-            Vector3 offset = new Vector3(Random.Range(-1.2f, 1.2f), .12f, Random.Range(-1.2f, 1.2f));
-            GameObject bloom = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            bloom.name = "Wildflower";
-            bloom.transform.position = pos + offset;
-            bloom.transform.localScale = new Vector3(.16f, .16f, .16f);
-            bloom.GetComponent<Renderer>().sharedMaterial = material;
-            Collider col = bloom.GetComponent<Collider>();
-            if (col != null) Object.DestroyImmediate(col);
+            Vector3 offset = new Vector3(Random.Range(-1.2f, 1.2f), 0f, Random.Range(-1.2f, 1.2f));
+            float height = Random.Range(.20f, .38f);
+            GameObject stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            stem.name = "Wildflower Stem";
+            stem.transform.position = pos + offset + Vector3.up * (height * .48f);
+            stem.transform.localScale = new Vector3(.018f, height * .5f, .018f);
+            stem.GetComponent<Renderer>().sharedMaterial = stemMaterial;
+            RemoveCollider(stem);
+
+            Vector3 bloomCenter = pos + offset + Vector3.up * height;
+            float size = Random.Range(.07f, .11f);
+            for (int petal = 0; petal < 5; petal++)
+            {
+                float angle = petal * 72f;
+                Vector3 petalOffset = Quaternion.Euler(0f, angle, 0f) * new Vector3(size * .68f, 0f, 0f);
+                GameObject bloom = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                bloom.name = "Wildflower Petal";
+                bloom.transform.position = bloomCenter + petalOffset;
+                bloom.transform.localScale = new Vector3(size, size * .55f, size * .78f);
+                bloom.GetComponent<Renderer>().sharedMaterial = material;
+                RemoveCollider(bloom);
+            }
+
+            GameObject center = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            center.name = "Wildflower Center";
+            center.transform.position = bloomCenter;
+            center.transform.localScale = Vector3.one * .055f;
+            center.GetComponent<Renderer>().sharedMaterial = flowerCenter;
+            RemoveCollider(center);
         }
     }
     private static void BuildCamera(Transform target)
@@ -297,27 +511,55 @@ public static class StealEggsDemoSetup
     }
     private static void BuildLight()
     {
-        // Apply the highest available built-in quality level; actual maximum still depends on PC/GPU and URP assets.
-        if (QualitySettings.names.Length > 0) QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1, true);
+        if (QualitySettings.names.Length > 0)
+            QualitySettings.SetQualityLevel(QualitySettings.names.Length - 1, true);
+
         QualitySettings.antiAliasing = 4;
         QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
         QualitySettings.shadows = ShadowQuality.All;
-        QualitySettings.shadowDistance = 180f;
+        QualitySettings.shadowDistance = 150f;
         QualitySettings.anisotropicFiltering = AnisotropicFiltering.ForceEnable;
-        QualitySettings.lodBias = 2f;
-        GameObject obj = new GameObject("Sun Light");
+        QualitySettings.lodBias = 1.8f;
+
+        GameObject obj = new GameObject("Late Afternoon Sun");
         Light light = obj.AddComponent<Light>();
-        light.type = LightType.Directional; light.intensity = 1.45f; light.shadows = LightShadows.Soft;
-        light.shadowStrength = .82f; light.shadowResolution = LightShadowResolution.VeryHigh;
-        light.bounceIntensity = 1.1f; light.color = new Color(1f, .94f, .82f);
-        obj.transform.rotation = Quaternion.Euler(48f, -32f, 0f);
+        light.type = LightType.Directional;
+        light.intensity = 1.12f;
+        light.shadows = LightShadows.Soft;
+        light.shadowStrength = .72f;
+        light.shadowResolution = LightShadowResolution.VeryHigh;
+        light.bounceIntensity = 1.0f;
+        light.color = new Color(1f, .88f, .73f);
+        obj.transform.rotation = Quaternion.Euler(34f, -28f, 0f);
+
         RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(.54f, .69f, .86f);
-        RenderSettings.ambientEquatorColor = new Color(.42f, .48f, .39f);
-        RenderSettings.ambientGroundColor = new Color(.20f, .19f, .16f);
-        RenderSettings.ambientIntensity = 1.15f;
-        RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential;
-        RenderSettings.fogColor = new Color(.65f, .76f, .83f); RenderSettings.fogDensity = .0008f;
+        RenderSettings.ambientSkyColor = new Color(.43f, .59f, .76f);
+        RenderSettings.ambientEquatorColor = new Color(.42f, .46f, .37f);
+        RenderSettings.ambientGroundColor = new Color(.20f, .19f, .15f);
+        RenderSettings.ambientIntensity = 1.0f;
+        RenderSettings.fog = true;
+        RenderSettings.fogMode = FogMode.Exponential;
+        RenderSettings.fogColor = new Color(.66f, .74f, .79f);
+        RenderSettings.fogDensity = .00055f;
+
+        Shader skyShader = Shader.Find("Skybox/Procedural");
+        if (skyShader != null)
+        {
+            string skyPath = MaterialsPath + "/NaturalOutdoorSky.mat";
+            Material sky = AssetDatabase.LoadAssetAtPath<Material>(skyPath);
+            if (sky == null)
+            {
+                sky = new Material(skyShader);
+                sky.name = "NaturalOutdoorSky";
+                AssetDatabase.CreateAsset(sky, skyPath);
+            }
+            if (sky.HasProperty("_SunSize")) sky.SetFloat("_SunSize", .035f);
+            if (sky.HasProperty("_AtmosphereThickness")) sky.SetFloat("_AtmosphereThickness", .9f);
+            if (sky.HasProperty("_Exposure")) sky.SetFloat("_Exposure", 1.15f);
+            RenderSettings.skybox = sky;
+        }
+
+        DynamicGI.UpdateEnvironment();
     }
     private static void BuildEventSystem()
     {
@@ -360,6 +602,149 @@ public static class StealEggsDemoSetup
         GameObject obj=new GameObject(name,typeof(RectTransform),typeof(Text));obj.transform.SetParent(parent,false);RectTransform rect=obj.GetComponent<RectTransform>();rect.anchorMin=new Vector2(0f,1f);rect.anchorMax=new Vector2(0f,1f);rect.pivot=new Vector2(0f,1f);rect.anchoredPosition=pos;rect.sizeDelta=size;
         Text text=obj.GetComponent<Text>();text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");if(text.font==null)text.font=Font.CreateDynamicFontFromOSFont("Arial",fontSize);text.fontSize=fontSize;text.alignment=alignment;text.horizontalOverflow=HorizontalWrapMode.Wrap;text.verticalOverflow=VerticalWrapMode.Overflow;text.text="";return text;
     }
+    private static void ApplyNaturalTexture(Material material, string textureName, Color darkColor, Color lightColor, Vector2 tiling, bool verticalGrain)
+    {
+        Texture2D texture = CreateNaturalTexture(textureName, darkColor, lightColor, verticalGrain);
+        material.mainTexture = texture;
+        material.mainTextureScale = tiling;
+        material.color = Color.white;
+        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
+        if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", .22f);
+        material.enableInstancing = true;
+        EditorUtility.SetDirty(material);
+    }
+
+    private static Texture2D CreateNaturalTexture(string textureName, Color darkColor, Color lightColor, bool verticalGrain)
+    {
+        string assetPath = TexturesPath + "/" + textureName + ".asset";
+        Texture2D existing = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        if (existing != null) return existing;
+
+        const int size = 256;
+        Texture2D texture = new Texture2D(size, size, TextureFormat.RGB24, false, false);
+        texture.name = textureName;
+        texture.wrapMode = TextureWrapMode.Repeat;
+        texture.filterMode = FilterMode.Bilinear;
+        texture.anisoLevel = 8;
+
+        float seed = textureName.Length * .173f;
+        Color[] pixels = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float n1 = verticalGrain
+                    ? Mathf.PerlinNoise(x * .035f + seed, y * .008f + seed)
+                    : Mathf.PerlinNoise(x * .025f + seed, y * .025f + seed * .7f);
+                float n2 = verticalGrain
+                    ? Mathf.PerlinNoise(x * .12f + seed * 2f, y * .045f + seed)
+                    : Mathf.PerlinNoise(x * .09f + seed * 1.7f, y * .09f + seed * .3f);
+                float noise = Mathf.Clamp01(n1 * .72f + n2 * .28f);
+                float fleck = Mathf.Sin(x * 12.9898f + y * 78.233f + seed * 31.7f) * .035f;
+                noise = Mathf.Clamp01(noise + fleck);
+                pixels[y * size + x] = Color.Lerp(darkColor, lightColor, noise);
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, false);
+        AssetDatabase.CreateAsset(texture, assetPath);
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+    }
+
+    private static void CreateGrassDetails()
+    {
+        const int tuftCount = 720;
+        List<Vector3> vertices = new List<Vector3>(tuftCount * 12);
+        List<int>[] triangles = { new List<int>(), new List<int>(), new List<int>() };
+        Color[] grassColors =
+        {
+            new Color(.16f, .34f, .09f),
+            new Color(.23f, .40f, .12f),
+            new Color(.31f, .43f, .15f)
+        };
+
+        for (int i = 0; i < tuftCount; i++)
+        {
+            float x = Random.Range(-77f, 77f);
+            float z = Random.Range(-51f, 51f);
+            if (Mathf.Abs(z) < 4.8f ||
+                Vector2.Distance(new Vector2(x, z), new Vector2(-65f, 0f)) < 10f ||
+                Vector2.Distance(new Vector2(x, z), new Vector2(65f, 0f)) < 10f ||
+                (Mathf.Abs(x + 64f) < 6f && Mathf.Abs(z + 14f) < 4f) ||
+                (Mathf.Abs(x + 28f) < 2f && Mathf.Abs(z) < 3f) ||
+                (Mathf.Abs(x - 5f) < 2f && Mathf.Abs(z) < 3f) ||
+                (Mathf.Abs(x - 36f) < 2f && Mathf.Abs(z) < 3f))
+                continue;
+
+            int variant = Random.Range(0, grassColors.Length);
+            float height = Random.Range(.18f, .42f);
+            float width = Random.Range(.045f, .09f);
+            Vector3 basePoint = new Vector3(x, .025f, z);
+
+            for (int blade = 0; blade < 3; blade++)
+            {
+                float angle = blade * 60f + Random.Range(-16f, 16f);
+                Vector3 right = Quaternion.Euler(0f, angle, 0f) * Vector3.right * width;
+                Vector3 lean = Quaternion.Euler(0f, angle + 90f, 0f) * Vector3.forward * Random.Range(.04f, .15f);
+                int start = vertices.Count;
+                vertices.Add(basePoint - right);
+                vertices.Add(basePoint + right);
+                vertices.Add(basePoint + lean + Vector3.up * height + right * .12f);
+                vertices.Add(basePoint + lean + Vector3.up * height - right * .12f);
+                List<int> t = triangles[variant];
+                // Double sided triangles keep blades visible from the third-person camera.
+                t.Add(start); t.Add(start + 2); t.Add(start + 1);
+                t.Add(start); t.Add(start + 3); t.Add(start + 2);
+                t.Add(start + 1); t.Add(start + 2); t.Add(start);
+                t.Add(start + 2); t.Add(start + 3); t.Add(start);
+            }
+        }
+
+        Mesh mesh = new Mesh();
+        mesh.name = "Combined Natural Grass Tufts";
+        mesh.indexFormat = vertices.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16;
+        mesh.SetVertices(vertices);
+        mesh.subMeshCount = triangles.Length;
+        for (int i = 0; i < triangles.Length; i++) mesh.SetTriangles(triangles[i], i);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        string meshPath = Root + "/NaturalGrassDetails.asset";
+        Mesh existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+        if (existingMesh == null)
+            AssetDatabase.CreateAsset(mesh, meshPath);
+        else
+        {
+            existingMesh.Clear();
+            existingMesh.indexFormat = mesh.indexFormat;
+            existingMesh.SetVertices(vertices);
+            existingMesh.subMeshCount = triangles.Length;
+            for (int i = 0; i < triangles.Length; i++) existingMesh.SetTriangles(triangles[i], i);
+            existingMesh.RecalculateNormals();
+            existingMesh.RecalculateBounds();
+            Object.DestroyImmediate(mesh);
+            mesh = existingMesh;
+        }
+
+        GameObject grassObject = new GameObject("Combined Meadow Grass Details");
+        MeshFilter filter = grassObject.AddComponent<MeshFilter>();
+        MeshRenderer renderer = grassObject.AddComponent<MeshRenderer>();
+        filter.sharedMesh = mesh;
+        renderer.sharedMaterials = new[]
+        {
+            Mat("GrassBladeDeep", grassColors[0]),
+            Mat("GrassBladeMid", grassColors[1]),
+            Mat("GrassBladeSunlit", grassColors[2])
+        };
+        for (int i = 0; i < renderer.sharedMaterials.Length; i++)
+        {
+            Material mat = renderer.sharedMaterials[i];
+            if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", .18f);
+            mat.enableInstancing = true;
+        }
+    }
+
     private static Material Mat(string name,Color color)
     {
         string path = MaterialsPath + "/" + name + ".mat";
@@ -374,9 +759,11 @@ public static class StealEggsDemoSetup
     {
         bool premium = materialName.Contains("Gold") || materialName.Contains("Diamond") ||
                       materialName.Contains("Rare") || materialName.Contains("Crystal");
-        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", premium ? .42f : .04f);
-        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", premium ? .78f : .34f);
+        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", premium ? .34f : .015f);
+        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", premium ? .72f : .24f);
+        if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", premium ? .72f : .24f);
         if (materialName.Contains("Gold") && material.HasProperty("_Metallic")) material.SetFloat("_Metallic", .72f);
+        material.enableInstancing = true;
     }
 
     private static void EnsureFolder(string folder)
