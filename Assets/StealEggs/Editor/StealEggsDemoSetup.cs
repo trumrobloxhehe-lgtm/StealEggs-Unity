@@ -216,20 +216,20 @@ public static class StealEggsDemoSetup
         Material buckle = Mat("BeltBuckle_" + name.Replace(" ", "_"), new Color(.74f, .56f, .22f));
 
         // Rounded torso, neck and shaped head replace the old cuboid mannequin.
-        Transform torso = ShapePart("Torso", root.transform, new Vector3(0f, 1.42f, 0f), new Vector3(.31f, .43f, .205f), shirt, PrimitiveType.Capsule);
+        Transform torso = ShapePart("Torso", root.transform, new Vector3(0f, 1.42f, 0f), new Vector3(.55f, .43f, .38f), shirt, PrimitiveType.Capsule);
         ShapePart("Neck", root.transform, new Vector3(0f, 1.87f, .005f), new Vector3(.105f, .13f, .105f), skin, PrimitiveType.Cylinder);
-        Transform head = ShapePart("Head", root.transform, new Vector3(0f, 2.16f, .015f), new Vector3(.255f, .315f, .225f), skin, PrimitiveType.Sphere);
+        Transform head = ShapePart("Head", root.transform, new Vector3(0f, 2.16f, .015f), new Vector3(.51f, .63f, .45f), skin, PrimitiveType.Sphere);
 
         // Layered hair clumps give characters different silhouettes.
         int hairstyle = Mathf.Abs(name.GetHashCode()) % 3;
-        ShapePart("Hair Cap", root.transform, new Vector3(0f, 2.405f, -.005f), new Vector3(.27f, .13f, .24f), hair, PrimitiveType.Sphere);
+        ShapePart("Hair Cap", root.transform, new Vector3(0f, 2.405f, -.005f), new Vector3(.54f, .24f, .48f), hair, PrimitiveType.Sphere);
         ShapePart("Hair Fringe L", root.transform, new Vector3(-.115f, 2.355f, .177f), new Vector3(.105f, .10f, .09f), hair, PrimitiveType.Sphere);
         ShapePart("Hair Fringe R", root.transform, new Vector3(.06f, 2.365f, .19f), new Vector3(.12f, .085f, .075f), hair, PrimitiveType.Sphere);
         ShapePart("Side Hair L", root.transform, new Vector3(-.238f, 2.19f, -.005f), new Vector3(.065f, .18f, .12f), hair, PrimitiveType.Sphere);
         ShapePart("Side Hair R", root.transform, new Vector3(.238f, 2.19f, -.005f), new Vector3(.065f, .18f, .12f), hair, PrimitiveType.Sphere);
         if (hairstyle == 1)
         {
-            ShapePart("Back Hair", root.transform, new Vector3(0f, 2.17f, -.19f), new Vector3(.23f, .27f, .12f), hair, PrimitiveType.Sphere);
+            ShapePart("Back Hair", root.transform, new Vector3(0f, 2.17f, -.19f), new Vector3(.46f, .34f, .24f), hair, PrimitiveType.Sphere);
             ShapePart("Long Fringe", root.transform, new Vector3(-.04f, 2.29f, .20f), new Vector3(.13f, .16f, .07f), hair, PrimitiveType.Sphere);
         }
         else if (hairstyle == 2)
