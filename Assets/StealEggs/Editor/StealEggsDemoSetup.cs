@@ -16,12 +16,16 @@ public static class StealEggsDemoSetup
     private const string ScenePath = Root + "/Scenes/StealEggsDemo.unity";
     private const string MaterialsPath = Root + "/Materials";
     private const string TexturesPath = Root + "/Textures";
+    private static readonly Dictionary<string, List<GameObject>> NaturePrefabCache =
+        new Dictionary<string, List<GameObject>>();
 
     [MenuItem("Steal Eggs/Build Demo Arena")]
     public static void BuildDemoArena()
     {
         if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+        NaturePrefabCache.Clear();
         EnsureFolder(Root + "/Scenes"); EnsureFolder(MaterialsPath); EnsureFolder(TexturesPath);
+        EnsureURPActive();
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         Random.InitState(20261018);
 
@@ -85,7 +89,7 @@ public static class StealEggsDemoSetup
             if (i % 4 == 0) FlowerPatch(new Vector3(x + 2f, 0f, z - 1.5f), flower);
         }
 
-        CreateGrassDetails();
+        if (!CreateNaturalGroundCover()) CreateGrassDetails();
 
         Transform blueBase = Base("BLUE HOME BASE", new Vector3(-65f, .12f, 0f), blue);
         Transform orangeBase = Base("ORANGE RIVAL BASE", new Vector3(65f, .12f, 0f), orange);
@@ -346,6 +350,13 @@ public static class StealEggsDemoSetup
 
     private static void Tree(Vector3 pos, Material trunkMat, Material leafMat, float scale = 1f)
     {
+        // Use real imported Nature Pack prefabs whenever available.
+        List<GameObject> treePrefabs = FindNaturePrefabs(
+            "tree", "oak", "pine", "fir", "birch", "maple", "palm", "spruce", "willow", "broadleaf");
+        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(3.8f, 5.2f) * scale))
+            return;
+
+        // Fallback for a clean project without the Nature Pack imported yet.
         GameObject treeRoot = new GameObject("Natural Broadleaf Tree");
         treeRoot.transform.position = pos;
         treeRoot.transform.localScale = Vector3.one * scale;
@@ -365,7 +376,6 @@ public static class StealEggsDemoSetup
         trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
         RemoveCollider(trunk);
 
-        // Flared roots and branches break the straight-cylinder silhouette.
         for (int i = 0; i < 4; i++)
         {
             float angle = i * 90f + Random.Range(-16f, 16f);
@@ -386,7 +396,6 @@ public static class StealEggsDemoSetup
             CreateBranch(treeRoot.transform, start, end, .075f, barkLight, "Branch");
         }
 
-        // Layered, irregular leaf clusters create a full canopy instead of a single sphere.
         int clusterCount = Random.Range(8, 12);
         for (int i = 0; i < clusterCount; i++)
         {
@@ -405,7 +414,6 @@ public static class StealEggsDemoSetup
             RemoveCollider(cluster);
         }
 
-        // Low foliage helps the trunk blend into the ground.
         for (int i = 0; i < 3; i++)
         {
             float angle = i * 120f + Random.Range(-25f, 25f);
@@ -437,15 +445,18 @@ public static class StealEggsDemoSetup
         Collider collider = obj.GetComponent<Collider>();
         if (collider != null) Object.DestroyImmediate(collider);
     }
+
     private static void Rock(Vector3 pos, Material material, float scale)
     {
+        List<GameObject> rockPrefabs = FindNaturePrefabs("rock", "boulder", "stone", "pebble");
+        if (rockPrefabs.Count > 0 && TryPlaceNaturePrefab(rockPrefabs, pos, Mathf.Max(.4f, scale * 1.1f)))
+            return;
+
         GameObject root = new GameObject("Weathered Boulder Cluster");
         root.transform.position = pos;
         root.transform.rotation = Quaternion.Euler(Random.Range(-18f, 18f), Random.Range(0f, 360f), Random.Range(-16f, 16f));
-
         Material stoneLight = Mat("Stone_" + material.name + "_Light", Color.Lerp(material.color, new Color(.63f, .61f, .55f), .22f));
         Material stoneDark = Mat("Stone_" + material.name + "_Shadow", Color.Lerp(material.color, Color.black, .22f));
-
         int count = Random.Range(2, 4);
         for (int i = 0; i < count; i++)
         {
@@ -459,6 +470,7 @@ public static class StealEggsDemoSetup
             RemoveCollider(rock);
         }
     }
+
     private static void FlowerPatch(Vector3 pos, Material material)
     {
         Material stemMaterial = Mat("WildflowerStem", new Color(.08f, .22f, .055f));
@@ -602,6 +614,156 @@ public static class StealEggsDemoSetup
         GameObject obj=new GameObject(name,typeof(RectTransform),typeof(Text));obj.transform.SetParent(parent,false);RectTransform rect=obj.GetComponent<RectTransform>();rect.anchorMin=new Vector2(0f,1f);rect.anchorMax=new Vector2(0f,1f);rect.pivot=new Vector2(0f,1f);rect.anchoredPosition=pos;rect.sizeDelta=size;
         Text text=obj.GetComponent<Text>();text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");if(text.font==null)text.font=Font.CreateDynamicFontFromOSFont("Arial",fontSize);text.fontSize=fontSize;text.alignment=alignment;text.horizontalOverflow=HorizontalWrapMode.Wrap;text.verticalOverflow=VerticalWrapMode.Overflow;text.text="";return text;
     }
+    private static void EnsureURPActive()
+    {
+        // Activate the URP asset the user created, if one is present in the project.
+        string[] guids = AssetDatabase.FindAssets("t:UniversalRenderPipelineAsset", new[] { "Assets" });
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            RenderPipelineAsset pipeline = AssetDatabase.LoadAssetAtPath<RenderPipelineAsset>(path);
+            if (pipeline == null) continue;
+
+            GraphicsSettings.defaultRenderPipeline = pipeline;
+            QualitySettings.renderPipeline = pipeline;
+            EditorUtility.SetDirty(pipeline);
+            Debug.Log("Steal Eggs: enabled URP pipeline from " + path);
+            return;
+        }
+
+        Debug.LogWarning("Steal Eggs: no Universal Render Pipeline Asset found. Create one via Assets > Create > Rendering, then run Build Demo Arena again.");
+    }
+
+    private static List<GameObject> FindNaturePrefabs(params string[] keywords)
+    {
+        string cacheKey = string.Join("|", keywords);
+        List<GameObject> cached;
+        if (NaturePrefabCache.TryGetValue(cacheKey, out cached))
+            return cached;
+
+        List<GameObject> preferred = new List<GameObject>();
+        List<GameObject> fallback = new List<GameObject>();
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string lowerPath = path.ToLowerInvariant();
+            string fileName = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+
+            if (lowerPath.Contains("/samples/") || lowerPath.Contains("/demo/") ||
+                lowerPath.Contains("preview") || lowerPath.Contains("thumbnail") ||
+                lowerPath.Contains("icon"))
+                continue;
+
+            bool matches = false;
+            for (int k = 0; k < keywords.Length; k++)
+            {
+                if (fileName.Contains(keywords[k].ToLowerInvariant()))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+            if (!matches) continue;
+
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab == null) continue;
+
+            bool fromNaturePack =
+                lowerPath.Contains("essential") || lowerPath.Contains("polyeler") ||
+                lowerPath.Contains("nature") || lowerPath.Contains("environment");
+            if (fromNaturePack) preferred.Add(prefab);
+            else fallback.Add(prefab);
+        }
+
+        if (preferred.Count > 0) cached = preferred;
+        else cached = fallback;
+        NaturePrefabCache[cacheKey] = cached;
+        return cached;
+    }
+
+    private static bool TryPlaceNaturePrefab(List<GameObject> candidates, Vector3 position, float desiredHeight)
+    {
+        if (candidates == null || candidates.Count == 0) return false;
+
+        GameObject source = candidates[Random.Range(0, candidates.Count)];
+        GameObject instance = PrefabUtility.InstantiatePrefab(source) as GameObject;
+        if (instance == null) instance = Object.Instantiate(source);
+        if (instance == null) return false;
+
+        instance.name = source.name;
+        instance.transform.position = position;
+        instance.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+
+        Bounds bounds;
+        if (!TryGetRendererBounds(instance, out bounds) || bounds.size.y < .001f)
+        {
+            Object.DestroyImmediate(instance);
+            return false;
+        }
+
+        float factor = Mathf.Clamp(desiredHeight / bounds.size.y, .001f, 100f);
+        instance.transform.localScale *= factor;
+
+        if (TryGetRendererBounds(instance, out bounds))
+            instance.transform.position += Vector3.up * (position.y - bounds.min.y);
+
+        return true;
+    }
+
+    private static bool TryGetRendererBounds(GameObject obj, out Bounds bounds)
+    {
+        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
+        if (renderers == null || renderers.Length == 0)
+        {
+            bounds = new Bounds(obj.transform.position, Vector3.zero);
+            return false;
+        }
+
+        bool initialized = false;
+        bounds = new Bounds(obj.transform.position, Vector3.zero);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] == null || !renderers[i].enabled) continue;
+            if (!initialized)
+            {
+                bounds = renderers[i].bounds;
+                initialized = true;
+            }
+            else bounds.Encapsulate(renderers[i].bounds);
+        }
+        return initialized;
+    }
+
+    private static bool CreateNaturalGroundCover()
+    {
+        List<GameObject> plants = FindNaturePrefabs("weed", "grass", "fern", "bush", "shrub", "clover", "plant");
+        if (plants.Count == 0) return false;
+
+        int placed = 0;
+        const int attempts = 140;
+        for (int i = 0; i < attempts && placed < 72; i++)
+        {
+            float x = Random.Range(-76f, 76f);
+            float z = Random.Range(-50f, 50f);
+            if (Mathf.Abs(z) < 5.2f ||
+                Vector2.Distance(new Vector2(x, z), new Vector2(-65f, 0f)) < 10f ||
+                Vector2.Distance(new Vector2(x, z), new Vector2(65f, 0f)) < 10f ||
+                (Mathf.Abs(x + 64f) < 6f && Mathf.Abs(z + 14f) < 4f) ||
+                (Mathf.Abs(x + 28f) < 2.5f && Mathf.Abs(z) < 3.5f) ||
+                (Mathf.Abs(x - 5f) < 2.5f && Mathf.Abs(z) < 3.5f) ||
+                (Mathf.Abs(x - 36f) < 2.5f && Mathf.Abs(z) < 3.5f))
+                continue;
+
+            if (TryPlaceNaturePrefab(plants, new Vector3(x, .02f, z), Random.Range(.35f, 1.05f)))
+                placed++;
+        }
+
+        Debug.Log("Steal Eggs: placed " + placed + " real ground-cover prefabs from the Nature Pack.");
+        return placed > 0;
+    }
+
     private static void ApplyNaturalTexture(Material material, string textureName, Color darkColor, Color lightColor, Vector2 tiling, bool verticalGrain)
     {
         Texture2D texture = CreateNaturalTexture(textureName, darkColor, lightColor, verticalGrain);
@@ -808,12 +970,36 @@ public static class StealEggsDemoSetup
     {
         string path = MaterialsPath + "/" + name + ".mat";
         Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (existing != null) { existing.color = color; TuneMaterial(existing, name); EditorUtility.SetDirty(existing); return existing; }
+        if (existing != null) { UpgradeMaterialToURP(existing); existing.color = color; TuneMaterial(existing, name); EditorUtility.SetDirty(existing); return existing; }
         Shader shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader == null) shader = Shader.Find("Standard");
-        Material m = new Material(shader); m.name = name; m.color = color; TuneMaterial(m, name);
+        Material m = new Material(shader); m.name = name; m.color = color; UpgradeMaterialToURP(m); TuneMaterial(m, name);
         AssetDatabase.CreateAsset(m, path); return m;
     }
+    private static void UpgradeMaterialToURP(Material material)
+    {
+        if (material == null) return;
+        Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
+        if (urpShader == null || material.shader == urpShader) return;
+
+        string oldShaderName = material.shader != null ? material.shader.name : string.Empty;
+        if (oldShaderName != "Standard" && !oldShaderName.Contains("Legacy Shaders"))
+            return;
+
+        Color oldColor = material.color;
+        Texture oldMainTexture = material.mainTexture;
+        float oldMetallic = material.HasProperty("_Metallic") ? material.GetFloat("_Metallic") : 0f;
+        float oldSmoothness = material.HasProperty("_Glossiness") ? material.GetFloat("_Glossiness") : .25f;
+        material.shader = urpShader;
+
+        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", oldColor);
+        if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", oldMainTexture);
+        if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", oldMetallic);
+        if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", oldSmoothness);
+        if (material.HasProperty("_GlossMapScale")) material.SetFloat("_GlossMapScale", oldSmoothness);
+        EditorUtility.SetDirty(material);
+    }
+
     private static void TuneMaterial(Material material, string materialName)
     {
         bool premium = materialName.Contains("Gold") || materialName.Contains("Diamond") ||
