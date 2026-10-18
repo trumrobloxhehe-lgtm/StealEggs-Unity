@@ -610,6 +610,13 @@ public static class StealEggsDemoSetup
         material.color = Color.white;
         if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
         if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", .22f);
+        Texture2D normalMap = CreateNaturalNormalTexture(textureName, verticalGrain);
+        if (material.HasProperty("_BumpMap") && normalMap != null)
+        {
+            material.SetTexture("_BumpMap", normalMap);
+            material.EnableKeyword("_NORMALMAP");
+            if (material.HasProperty("_BumpScale")) material.SetFloat("_BumpScale", verticalGrain ? .34f : .18f);
+        }
         material.enableInstancing = true;
         EditorUtility.SetDirty(material);
     }
@@ -649,6 +656,58 @@ public static class StealEggsDemoSetup
         texture.SetPixels(pixels);
         texture.Apply(false, false);
         AssetDatabase.CreateAsset(texture, assetPath);
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+    }
+
+    private static Texture2D CreateNaturalNormalTexture(string textureName, bool verticalGrain)
+    {
+        string assetPath = TexturesPath + "/" + textureName + "_Normal.asset";
+        Texture2D existing = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        if (existing != null) return existing;
+
+        const int size = 256;
+        float seed = textureName.Length * .173f;
+        float[] heightMap = new float[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float n1 = verticalGrain
+                    ? Mathf.PerlinNoise(x * .035f + seed, y * .008f + seed)
+                    : Mathf.PerlinNoise(x * .025f + seed, y * .025f + seed * .7f);
+                float n2 = verticalGrain
+                    ? Mathf.PerlinNoise(x * .12f + seed * 2f, y * .045f + seed)
+                    : Mathf.PerlinNoise(x * .09f + seed * 1.7f, y * .09f + seed * .3f);
+                heightMap[y * size + x] = n1 * .72f + n2 * .28f;
+            }
+        }
+
+        Texture2D normalMap = new Texture2D(size, size, TextureFormat.RGBA32, false, true);
+        normalMap.name = textureName + "_Normal";
+        normalMap.wrapMode = TextureWrapMode.Repeat;
+        normalMap.filterMode = FilterMode.Bilinear;
+        normalMap.anisoLevel = 8;
+        Color[] pixels = new Color[size * size];
+        float strength = verticalGrain ? 5.0f : 2.1f;
+
+        for (int y = 0; y < size; y++)
+        {
+            int up = (y + 1) % size;
+            int down = (y - 1 + size) % size;
+            for (int x = 0; x < size; x++)
+            {
+                int left = (x - 1 + size) % size;
+                int right = (x + 1) % size;
+                float dx = (heightMap[y * size + left] - heightMap[y * size + right]) * strength;
+                float dy = (heightMap[down * size + x] - heightMap[up * size + x]) * strength;
+                Vector3 normal = new Vector3(dx, dy, 1f).normalized;
+                pixels[y * size + x] = new Color(normal.x * .5f + .5f, normal.y * .5f + .5f, normal.z * .5f + .5f, 1f);
+            }
+        }
+
+        normalMap.SetPixels(pixels);
+        normalMap.Apply(false, false);
+        AssetDatabase.CreateAsset(normalMap, assetPath);
         return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
     }
 
