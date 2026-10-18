@@ -273,12 +273,12 @@ public static class StealEggsDemoSetup
         Transform rl = Pivot("Right Leg Pivot", root.transform, new Vector3(.17f, .98f, 0f));
         ShapePart("Left Thigh", ll, new Vector3(0f, -.19f, 0f), new Vector3(.15f, .225f, .15f), pants, PrimitiveType.Capsule);
         ShapePart("Right Thigh", rl, new Vector3(0f, -.19f, 0f), new Vector3(.15f, .225f, .15f), pants, PrimitiveType.Capsule);
-        ShapePart("Left Shin", ll, new Vector3(0f, -.475f, .005f), new Vector3(.12f, .205f, .125f), pants, PrimitiveType.Capsule);
-        ShapePart("Right Shin", rl, new Vector3(0f, -.475f, .005f), new Vector3(.12f, .205f, .125f), pants, PrimitiveType.Capsule);
-        ShapePart("Left Shoe Sole", ll, new Vector3(0f, -.815f, .055f), new Vector3(.18f, .06f, .27f), sole, PrimitiveType.Sphere);
-        ShapePart("Right Shoe Sole", rl, new Vector3(0f, -.815f, .055f), new Vector3(.18f, .06f, .27f), sole, PrimitiveType.Sphere);
-        ShapePart("Left Shoe", ll, new Vector3(0f, -.78f, .075f), new Vector3(.17f, .105f, .245f), shoes, PrimitiveType.Sphere);
-        ShapePart("Right Shoe", rl, new Vector3(0f, -.78f, .075f), new Vector3(.17f, .105f, .245f), shoes, PrimitiveType.Sphere);
+        ShapePart("Left Shin", ll, new Vector3(0f, -.55f, .005f), new Vector3(.12f, .30f, .125f), pants, PrimitiveType.Capsule);
+        ShapePart("Right Shin", rl, new Vector3(0f, -.55f, .005f), new Vector3(.12f, .30f, .125f), pants, PrimitiveType.Capsule);
+        ShapePart("Left Shoe Sole", ll, new Vector3(0f, -.92f, .055f), new Vector3(.18f, .06f, .27f), sole, PrimitiveType.Sphere);
+        ShapePart("Right Shoe Sole", rl, new Vector3(0f, -.92f, .055f), new Vector3(.18f, .06f, .27f), sole, PrimitiveType.Sphere);
+        ShapePart("Left Shoe", ll, new Vector3(0f, -.88f, .075f), new Vector3(.17f, .105f, .245f), shoes, PrimitiveType.Sphere);
+        ShapePart("Right Shoe", rl, new Vector3(0f, -.88f, .075f), new Vector3(.17f, .105f, .245f), shoes, PrimitiveType.Sphere);
 
         StealEggsCharacterAnimation anim = root.AddComponent<StealEggsCharacterAnimation>();
         anim.leftArmPivot = la; anim.rightArmPivot = ra;
