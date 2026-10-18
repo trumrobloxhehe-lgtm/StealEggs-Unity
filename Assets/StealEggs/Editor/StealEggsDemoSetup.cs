@@ -352,7 +352,7 @@ public static class StealEggsDemoSetup
     {
         // Use real imported Nature Pack prefabs whenever available.
         List<GameObject> treePrefabs = FindNaturePrefabs(
-            "tree", "oak", "pine", "fir", "birch", "maple", "palm", "spruce", "willow", "broadleaf");
+            "tree", "oak", "pine", "fir", "birch", "maple", "palm", "spruce", "willow", "broadleaf", "redwood", "cedar", "cypress", "eurya", "laurel", "bamboo", "cherryblossom", "planetree", "ginkgo", "japanesecedar", "japanesecypress", "sawtoothoak", "dawnredwood");
         if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(3.8f, 5.2f) * scale))
             return;
 
@@ -738,7 +738,7 @@ public static class StealEggsDemoSetup
 
     private static bool CreateNaturalGroundCover()
     {
-        List<GameObject> plants = FindNaturePrefabs("weed", "grass", "fern", "bush", "shrub", "clover", "plant");
+        List<GameObject> plants = FindNaturePrefabs("weed", "grass", "fern", "bush", "shrub", "clover", "plant", "mugwort", "viola", "eurya", "laurel", "bamboo", "fallenleaves");
         if (plants.Count == 0) return false;
 
         int placed = 0;
