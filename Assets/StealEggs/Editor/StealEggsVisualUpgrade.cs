@@ -24,7 +24,7 @@ public static class StealEggsVisualUpgrade
             return;
         }
 
-        if (!EditorSceneManager.GetActiveScene().IsValid())
+        if (!SceneManager.GetActiveScene().IsValid())
         {
             EditorUtility.DisplayDialog("Steal Eggs", "Open the Steal Eggs demo scene first.", "OK");
             return;
