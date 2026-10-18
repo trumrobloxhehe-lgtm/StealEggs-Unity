@@ -13,6 +13,9 @@ This project is an original, Roblox-inspired egg-stealing simulator prototype. I
 - Pets appear in a showcase near base and generate passive coins per second.
 - Click shop buttons for movement speed, pickup range, bag capacity and dash cooldown upgrades.
 - Two repeatable-progress missions with one-time coin rewards.
+- Explore a much larger 160 × 110 world with separate grassland, woodland, lakeside and ancient-ruins zones, perimeter walls, tree lines, rocks and flower patches.
+- Expanded blue/orange bases, more egg spawn points, larger speed-training treadmill, and three wide progression gates.
+- Higher available Unity quality settings: 4× anti-aliasing, high shadow resolution/distance, anisotropic filtering, HDR camera, richer directional lighting and smoother metallic materials.
 - Stand on the speed-training treadmill to raise Speed and unlock gates to later regions.
 - Four original nest guardians chase after nearby eggs are stolen; getting caught can cost one carried egg.
 - Progress (coins, upgrades, trained speed, quests and hatched pet records) saves locally using Unity PlayerPrefs.
