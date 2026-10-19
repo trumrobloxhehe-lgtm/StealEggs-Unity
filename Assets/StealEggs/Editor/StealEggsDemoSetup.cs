@@ -18,6 +18,12 @@ public static class StealEggsDemoSetup
     private const string TexturesPath = Root + "/Textures";
     private static readonly Dictionary<string, List<GameObject>> NaturePrefabCache =
         new Dictionary<string, List<GameObject>>();
+    private static readonly Vector2[] AncientRuinAnchors =
+    {
+        new Vector2(41f, 44f), new Vector2(53f, 46f), new Vector2(65f, 44f),
+        new Vector2(73f, 43f), new Vector2(41f, -44f), new Vector2(55f, -46f),
+        new Vector2(69f, -43f)
+    };
 
     [MenuItem("Steal Eggs/Build Demo Arena")]
     public static void BuildDemoArena()
@@ -147,6 +153,11 @@ public static class StealEggsDemoSetup
             Egg("Egg " + (i + 1) + " - " + rarity, positions[i], onRivalSide, eggMat, rarity, coinValue);
         }
 
+        Material ancientStone = Mat("AncientRuinsStone", new Color(.58f, .54f, .46f));
+        TryApplyDownloadedStoneTexture(ancientStone, "stone_wall", "stonewall");
+        Material ancientRock = Mat("AncientRockFace", new Color(.43f, .42f, .38f));
+        TryApplyDownloadedStoneTexture(ancientRock, "rock_face_01", "rockface01", "rock_face");
+        CreateAncientRuins(ancientStone, ancientRock);
         CreateDenseForest(trunk, leaves);
 
         GameObject managerObj = new GameObject("Steal Eggs Game Manager");
@@ -604,7 +615,7 @@ public static class StealEggsDemoSetup
         return cached;
     }
 
-    private static bool TryPlaceNaturePrefab(List<GameObject> candidates, Vector3 position, float desiredHeight, bool solidTreeTrunk = false)
+    private static bool TryPlaceNaturePrefab(List<GameObject> candidates, Vector3 position, float desiredHeight, bool solidTreeTrunk = false, bool solidMeshCollision = false)
     {
         if (candidates == null || candidates.Count == 0) return false;
 
@@ -632,8 +643,55 @@ public static class StealEggsDemoSetup
 
         if (solidTreeTrunk)
             AddTreeTrunkCollider(instance);
+        else if (solidMeshCollision)
+            AddSolidMeshColliders(instance);
 
         return true;
+    }
+
+    private static void AddSolidMeshColliders(GameObject obj)
+    {
+        if (obj == null) return;
+
+        // Keep collision aligned to the actual architecture meshes, not a giant box over a doorway.
+        Collider[] previous = obj.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < previous.Length; i++)
+        {
+            if (previous[i] != null && !previous[i].isTrigger)
+                Object.DestroyImmediate(previous[i]);
+        }
+
+        MeshFilter[] filters = obj.GetComponentsInChildren<MeshFilter>(true);
+        int added = 0;
+        for (int i = 0; i < filters.Length; i++)
+        {
+            MeshFilter filter = filters[i];
+            if (filter == null || filter.sharedMesh == null) continue;
+            Renderer meshRenderer = filter.GetComponent<Renderer>();
+            if (meshRenderer == null || !meshRenderer.enabled) continue;
+            if (filter.sharedMesh.vertexCount < 3) continue;
+
+            MeshCollider meshCollider = filter.gameObject.GetComponent<MeshCollider>();
+            if (meshCollider == null) meshCollider = filter.gameObject.AddComponent<MeshCollider>();
+            meshCollider.sharedMesh = filter.sharedMesh;
+            meshCollider.convex = false;
+            added++;
+        }
+
+        // Unusual prefabs sometimes contain only renderers/skinned meshes. Keep those solid too.
+        if (added == 0)
+        {
+            Bounds bounds;
+            if (!TryGetRendererBounds(obj, out bounds)) return;
+            BoxCollider box = obj.GetComponent<BoxCollider>();
+            if (box == null) box = obj.AddComponent<BoxCollider>();
+            Vector3 scale = obj.transform.lossyScale;
+            box.center = obj.transform.InverseTransformPoint(bounds.center);
+            box.size = new Vector3(
+                bounds.size.x / Mathf.Max(.001f, Mathf.Abs(scale.x)),
+                bounds.size.y / Mathf.Max(.001f, Mathf.Abs(scale.y)),
+                bounds.size.z / Mathf.Max(.001f, Mathf.Abs(scale.z)));
+        }
     }
 
     private static void AddTreeTrunkCollider(GameObject tree)
@@ -688,6 +746,233 @@ public static class StealEggsDemoSetup
         return initialized;
     }
 
+    private static string NormalizeAssetName(string value)
+    {
+        return string.IsNullOrEmpty(value) ? string.Empty :
+            value.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Replace(".", "");
+    }
+
+    private static List<GameObject> FindRuinPrefabsByName(params string[] keywords)
+    {
+        List<GameObject> results = new List<GameObject>();
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string fileName = Path.GetFileNameWithoutExtension(assetPath);
+            string normalizedName = NormalizeAssetName(fileName);
+            if (normalizedName.Contains("preview") || normalizedName.Contains("thumbnail") ||
+                normalizedName.Contains("icon") || normalizedName.Contains("readme"))
+                continue;
+
+            bool matches = false;
+            for (int k = 0; k < keywords.Length; k++)
+            {
+                if (normalizedName.Contains(NormalizeAssetName(keywords[k])))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+            if (!matches) continue;
+
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (prefab == null || prefab.GetComponentInChildren<Renderer>(true) == null) continue;
+            results.Add(prefab);
+        }
+        return results;
+    }
+
+    private static List<GameObject> FindImportedRuinPackagePrefabs()
+    {
+        List<GameObject> results = new List<GameObject>();
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string fileName = Path.GetFileNameWithoutExtension(assetPath);
+            string normalizedPath = NormalizeAssetName(assetPath);
+            string normalizedName = NormalizeAssetName(fileName);
+            if (!normalizedPath.Contains("realisticruins") && !normalizedPath.Contains("realisticruin") &&
+                !normalizedPath.Contains("ancientruins"))
+                continue;
+            if (normalizedName.Contains("preview") || normalizedName.Contains("thumbnail") ||
+                normalizedName.Contains("icon") || normalizedName.Contains("readme") ||
+                normalizedName.Contains("demo"))
+                continue;
+
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (prefab == null || prefab.GetComponentInChildren<Renderer>(true) == null) continue;
+            results.Add(prefab);
+        }
+        return results;
+    }
+
+    private static bool TryApplyDownloadedStoneTexture(Material material, params string[] keywords)
+    {
+        if (material == null) return false;
+        string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets" });
+        Texture2D bestTexture = null;
+        int bestScore = -1;
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string fileName = Path.GetFileNameWithoutExtension(path);
+            string normalizedPath = NormalizeAssetName(path);
+            string normalizedName = NormalizeAssetName(fileName);
+            bool matches = false;
+            for (int k = 0; k < keywords.Length; k++)
+            {
+                string keyword = NormalizeAssetName(keywords[k]);
+                if (normalizedName.Contains(keyword) || normalizedPath.Contains(keyword))
+                {
+                    matches = true;
+                    break;
+                }
+            }
+            if (!matches) continue;
+
+            // Poly Haven texture sets also include normal, roughness and displacement maps.
+            // For this material we pick the color/albedo/diffuse map only.
+            bool nonColorMap = normalizedName.Contains("normal") || normalizedName.Contains("norgl") ||
+                normalizedName.Contains("rough") || normalizedName.Contains("metal") ||
+                normalizedName.Contains("displacement") || normalizedName.Contains("height") ||
+                normalizedName.Contains("ambientocclusion") || normalizedName.EndsWith("ao") ||
+                normalizedName.Contains("opacity") || normalizedName.Contains("specular");
+            if (nonColorMap) continue;
+
+            int score = 1;
+            if (normalizedName.Contains("albedo")) score += 30;
+            if (normalizedName.Contains("diffuse")) score += 25;
+            if (normalizedName.Contains("basecolor")) score += 25;
+            if (normalizedName.Contains("color") || normalizedName.EndsWith("col")) score += 18;
+            if (normalizedName.Contains("2k")) score += 3;
+            if (score <= bestScore) continue;
+
+            Texture2D candidate = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (candidate == null) continue;
+            bestTexture = candidate;
+            bestScore = score;
+        }
+
+        if (bestTexture == null) return false;
+        material.mainTexture = bestTexture;
+        material.mainTextureScale = new Vector2(2f, 2f);
+        material.color = Color.white;
+        if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", bestTexture);
+        if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
+        EditorUtility.SetDirty(material);
+        Debug.Log("Steal Eggs: applied downloaded stone texture '" + bestTexture.name + "' to " + material.name);
+        return true;
+    }
+
+    private static void CreateAncientRuins(Material stoneMaterial, Material rockMaterial)
+    {
+        List<GameObject> arches = FindRuinPrefabsByName("archway", "arch", "ruinedgate", "stonegate");
+        List<GameObject> walls = FindRuinPrefabsByName("brokenwall", "ruinedwall", "stonewall", "wallsection", "wall");
+        List<GameObject> pillars = FindRuinPrefabsByName("pillar", "column", "obelisk");
+        List<GameObject> structures = FindRuinPrefabsByName("ruin", "temple", "ancient", "monument", "structure", "building");
+        if (structures.Count == 0) structures = FindImportedRuinPackagePrefabs();
+
+        int importedPieces = 0;
+        for (int i = 0; i < AncientRuinAnchors.Length; i++)
+        {
+            Vector2 anchor = AncientRuinAnchors[i];
+            bool featureSpot = i == 0 || i == 2 || i == 4;
+            List<GameObject> pool = featureSpot
+                ? (arches.Count > 0 ? arches : structures)
+                : (walls.Count > 0 ? walls : structures);
+            float height = featureSpot ? Random.Range(7.5f, 10.0f) : Random.Range(4.5f, 6.5f);
+            bool placed = pool.Count > 0 &&
+                TryPlaceNaturePrefab(pool, new Vector3(anchor.x, 0f, anchor.y), height, false, true);
+
+            if (placed)
+            {
+                importedPieces++;
+            }
+            else
+            {
+                CreateProceduralAncientRuin(anchor, stoneMaterial, rockMaterial, i);
+            }
+
+            // Add natural-looking stone rubble around each structure, using the downloaded Rock Face texture when available.
+            CreateAncientRubble(anchor, rockMaterial, i);
+        }
+
+        if (pillars.Count > 0)
+        {
+            int[] featured = { 0, 2, 4 };
+            for (int i = 0; i < featured.Length; i++)
+            {
+                Vector2 anchor = AncientRuinAnchors[featured[i]];
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Vector3 pos = new Vector3(anchor.x + side * 3.0f, 0f, anchor.y + Random.Range(-.7f, .7f));
+                    TryPlaceNaturePrefab(pillars, pos, Random.Range(4.0f, 6.2f), false, true);
+                }
+            }
+        }
+
+        Debug.Log("Steal Eggs: placed " + importedPieces + " imported ruin prefab(s). " +
+            "If this is zero, import the Realistic Ruins prefabs into Assets; the scene used procedural ruins instead.");
+    }
+
+    private static void CreateProceduralAncientRuin(Vector2 center, Material stoneMaterial, Material rockMaterial, int style)
+    {
+        // Solid fallback pieces make the ruin readable even if only texture ZIPs were downloaded.
+        GameObject leftColumn = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        leftColumn.name = "Ancient Ruins - Broken Stone Column";
+        leftColumn.transform.position = new Vector3(center.x - 2.55f, 2.05f, center.y);
+        leftColumn.transform.localScale = new Vector3(.95f, 2.05f, .95f);
+        leftColumn.transform.rotation = Quaternion.Euler(Random.Range(-2f, 2f), Random.Range(0f, 360f), Random.Range(-3f, 3f));
+        leftColumn.GetComponent<Renderer>().sharedMaterial = stoneMaterial;
+
+        GameObject rightColumn = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        rightColumn.name = "Ancient Ruins - Standing Stone Column";
+        rightColumn.transform.position = new Vector3(center.x + 2.55f, 1.85f, center.y + .15f);
+        rightColumn.transform.localScale = new Vector3(.82f, 1.85f, .82f);
+        rightColumn.transform.rotation = Quaternion.Euler(Random.Range(-2f, 2f), Random.Range(0f, 360f), Random.Range(-3f, 3f));
+        rightColumn.GetComponent<Renderer>().sharedMaterial = stoneMaterial;
+
+        GameObject lintel = Cube("Ancient Ruins - Fallen Lintel", new Vector3(center.x, 4.1f, center.y), new Vector3(6.4f, .62f, .9f), stoneMaterial);
+        lintel.transform.rotation = Quaternion.Euler(0f, Random.Range(-8f, 8f), Random.Range(-4f, 4f));
+
+        GameObject rearWall = Cube("Ancient Ruins - Broken Rear Wall", new Vector3(center.x + .4f, 1.45f, center.y + 2.2f), new Vector3(4.4f, 2.9f, .62f), stoneMaterial);
+        rearWall.transform.rotation = Quaternion.Euler(0f, Random.Range(-8f, 8f), Random.Range(-5f, 5f));
+        GameObject sideWall = Cube("Ancient Ruins - Fallen Side Wall", new Vector3(center.x - 3.7f, .9f, center.y + 1.0f), new Vector3(2.4f, 1.7f, .58f), stoneMaterial);
+        sideWall.transform.rotation = Quaternion.Euler(0f, Random.Range(-20f, 20f), Random.Range(-8f, 8f));
+
+        if (style % 2 == 0)
+        {
+            GameObject slab = Cube("Ancient Ruins - Ground Slab", new Vector3(center.x + 2.1f, .22f, center.y - 1.4f), new Vector3(2.3f, .42f, 1.7f), stoneMaterial);
+            slab.transform.rotation = Quaternion.Euler(Random.Range(-3f, 3f), Random.Range(0f, 360f), Random.Range(-3f, 3f));
+        }
+    }
+
+    private static void CreateAncientRubble(Vector2 center, Material rockMaterial, int seedOffset)
+    {
+        Random.State oldState = Random.state;
+        Random.InitState(20261018 + seedOffset * 83);
+        int count = Random.Range(3, 6);
+        for (int i = 0; i < count; i++)
+        {
+            GameObject rock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            rock.name = "Ancient Ruins - Rock Debris";
+            rock.transform.position = new Vector3(
+                center.x + Random.Range(-4.0f, 4.0f),
+                Random.Range(.16f, .42f),
+                center.y + Random.Range(-3.5f, 3.5f));
+            rock.transform.localScale = new Vector3(
+                Random.Range(.55f, 1.45f),
+                Random.Range(.35f, .85f),
+                Random.Range(.55f, 1.2f));
+            rock.transform.rotation = Quaternion.Euler(Random.Range(-18f, 18f), Random.Range(0f, 360f), Random.Range(-18f, 18f));
+            rock.GetComponent<Renderer>().sharedMaterial = rockMaterial;
+        }
+        Random.state = oldState;
+    }
+
     private static void CreateDenseForest(Material trunkMat, Material leafMat)
     {
         // Jittered grid across the whole play area: overlapping crowns make it read as one continuous forest.
@@ -733,6 +1018,18 @@ public static class StealEggsDemoSetup
                 Vector2.Distance(p, new Vector2(-64f, -14f)) < 6.0f ||
                 Vector2.Distance(p, new Vector2(-65f, 16f)) < 7.0f)
                 continue;
+
+            // Leave clear building footprints for the Ancient Ruins landmark clusters.
+            bool insideRuinFootprint = false;
+            for (int ruin = 0; ruin < AncientRuinAnchors.Length; ruin++)
+            {
+                if (Vector2.Distance(p, AncientRuinAnchors[ruin]) < 8.5f)
+                {
+                    insideRuinFootprint = true;
+                    break;
+                }
+            }
+            if (insideRuinFootprint) continue;
 
             // Leave room around zone gates and guardians so they cannot be sealed behind tree trunks.
             if (Vector2.Distance(p, new Vector2(-28f, 0f)) < 4.1f ||
