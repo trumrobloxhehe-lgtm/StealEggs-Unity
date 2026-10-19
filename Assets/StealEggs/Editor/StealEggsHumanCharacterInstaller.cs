@@ -356,9 +356,9 @@ public sealed class StealEggsHumanCharacterInstaller : EditorWindow
         if (walk != null && idle != null)
             AddTransition(walk, idle, AnimatorConditionMode.Less, 0.12f, "Speed");
         if (walk != null && run != null)
-            AddTransition(walk, run, AnimatorConditionMode.Greater, 0.72f, "Speed");
+            AddTransition(walk, run, AnimatorConditionMode.Greater, 0.83f, "Speed");
         if (run != null && walk != null)
-            AddTransition(run, walk, AnimatorConditionMode.Less, 0.68f, "Speed");
+            AddTransition(run, walk, AnimatorConditionMode.Less, 0.78f, "Speed");
         if (walk != null && idle != null && run == null)
         {
             // The default walk/idle pair already covers movement; no additional state is needed.
