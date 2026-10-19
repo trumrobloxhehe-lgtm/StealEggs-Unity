@@ -46,6 +46,19 @@ The lake asset package must be imported locally in Unity; its licensed model fil
 4. Save a backup first: rebuilding the demo arena regenerates the demo scene and can replace edits made to that scene.
 
 The tool fits the selected Lake model to the existing lakeside zone as a starting point. Check the model's position and scale in Scene view after placement. The terrain, meshes, and materials remain local to your Unity project; do not upload asset-store files to this repository unless the asset license explicitly allows redistribution.
+## Use a realistic human character model
+
+The repository contains an Editor installer, not copyrighted character mesh files. Import a rigged humanoid model into the local Unity project first; do not commit raw character/animation files to the public repository unless the asset's terms explicitly permit redistribution.
+
+1. Open [Mixamo](https://www.mixamo.com/) and sign in with an Adobe ID if you want a free humanoid character and animations. Download a character with skin as **FBX for Unity**. Adobe's [Mixamo FAQ](https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html) describes Mixamo access and permitted project uses.
+2. In Unity, place the downloaded FBX under the local `Assets` folder. Select its FBX, open **Inspector → Rig**, set **Animation Type = Humanoid**, then click **Apply**. Confirm Avatar Definition is valid.
+3. Pull the latest `main` branch. Wait for Unity to compile `StealEggsHumanCharacterInstaller.cs` and `StealEggsHumanoidAnimatorDriver.cs`.
+4. Open **Steal Eggs → Install Realistic Human Character**. Click **Tìm model Humanoid đã import trong Assets** or drag the FBX model into **Model người chính**. Assign another model for Rival if desired.
+5. For a rigged model with its own Animator Controller, assign it to **Animator Controller có sẵn**. Otherwise, drag imported `Idle` and `Walk` AnimationClips into the fields; optional Run and Jump clips can also be supplied so the editor tool can make a simple controller.
+6. Choose Player and/or Rival, then click **THAY NHÂN VẬT TRONG SCENE HIỆN TẠI**. The tool keeps the gameplay root and hides the old procedural renderers. Check the model's height, foot alignment, forward direction, and animation in Play mode; save the scene when satisfied.
+
+If the character is visible but remains in a T-pose, recheck the FBX's **Rig = Humanoid**, its Avatar validity, and that Idle/Walk clips or an existing Animator Controller are assigned. If the model faces backward, adjust **Xoay model quanh trục Y** (try 180 degrees). This installer is best-effort and must be tested in the local Unity Editor.
+
 ## Controls
 - **W/A/S/D** or arrow keys: move relative to camera.
 - **Hold right mouse + drag:** rotate camera.
