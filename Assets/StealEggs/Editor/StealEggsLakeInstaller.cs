@@ -16,13 +16,13 @@ public class StealEggsLakeInstaller : EditorWindow
     private GameObject lakeAsset;
     private GameObject treeAsset;
     private GameObject rockAsset;
-    private Vector3 lakePosition = Vector3.zero;
+    private Vector3 lakePosition = new Vector3(20f, 0.02f, -42f);
     private Vector3 demoOffset = Vector3.zero;
     private float lakeScale = 1f;
     private int treeCount = 12;
     private int rockCount = 8;
-    private bool addBorderTrees = true;
-    private bool addBorderRocks = true;
+    private bool addBorderTrees = false;
+    private bool addBorderRocks = false;
     private string status = "Bấm 'Tự tìm asset' để Unity tìm hồ, cây và cảnh demo trong Assets.";
 
     [MenuItem("Tools/Steal Eggs/Lake Asset Installer")]
@@ -51,7 +51,7 @@ public class StealEggsLakeInstaller : EditorWindow
         rockAsset = (GameObject)EditorGUILayout.ObjectField("Prefab đá", rockAsset, typeof(GameObject), false);
 
         EditorGUILayout.Space(8);
-        EditorGUILayout.LabelField("Cách A — Thêm riêng asset hồ vào scene hiện tại", EditorStyles.boldLabel);
+        EditorGUILayout.LabelField("Cách A — Thay mặt nước cũ bằng hồ mới trong scene hiện tại", EditorStyles.boldLabel);
         lakePosition = EditorGUILayout.Vector3Field("Vị trí hồ (X, Y, Z)", lakePosition);
         lakeScale = EditorGUILayout.Slider("Tỉ lệ hồ", lakeScale, 0.1f, 10f);
         addBorderTrees = EditorGUILayout.Toggle("Thêm cây quanh mép", addBorderTrees);
@@ -63,7 +63,7 @@ public class StealEggsLakeInstaller : EditorWindow
 
         using (new EditorGUI.DisabledScope(lakeAsset == null))
         {
-            if (GUILayout.Button("TẠO KHU HỒ trong scene hiện tại", GUILayout.Height(38)))
+            if (GUILayout.Button("THAY HỒ CŨ BẰNG ASSET HỒ MỚI", GUILayout.Height(38)))
                 BuildLakeArea();
         }
 
@@ -207,7 +207,7 @@ public class StealEggsLakeInstaller : EditorWindow
     {
         if (lakeAsset == null)
         {
-            status = "Chưa có asset hồ. Hãy kéo mô hình/prefab hồ từ cửa sổ Project vào ô asset hồ.";
+            status = "Chưa có asset hồ. Bấm 'Tự tìm asset' hoặc kéo đúng tile Lake từ thư mục Pure Poly vào ô Mô hình/Prefab hồ.";
             return;
         }
 
@@ -220,11 +220,29 @@ public class StealEggsLakeInstaller : EditorWindow
 
         Undo.IncrementCurrentGroup();
         int undoGroup = Undo.GetCurrentGroup();
-        Undo.SetCurrentGroupName("Create Steal Eggs Lake Area");
+        Undo.SetCurrentGroupName("Replace Old Steal Eggs Lake");
+
+        // Remove only objects created as the old water surface / a previous installer run.
+        // Leave the rest of the scene, gameplay objects, lake shore ground, and egg placement untouched.
+        GameObject[] existingObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+        foreach (GameObject existing in existingObjects)
+        {
+            if (existing == null || existing.scene != targetScene)
+                continue;
+
+            string n = existing.name.ToLowerInvariant();
+            bool oldWater = n == "sunlit lakeside - shallow water" ||
+                            n == "sunlit lakeside - static water fallback (lake asset not found)" ||
+                            n == "sunlit lakeside - static water fallback" ||
+                            n == "lake_water_surface" ||
+                            (n.Contains("sunlit lakeside") && (n.Contains("water") || n.Contains("wave")));
+            if (oldWater || n == "generated_lake_area")
+                Undo.DestroyObjectImmediate(existing);
+        }
 
         var group = new GameObject("Generated_Lake_Area");
         Undo.RegisterCreatedObjectUndo(group, "Create Lake Area Parent");
-        group.transform.position = lakePosition;
+        group.transform.position = Vector3.zero;
 
         GameObject lake = InstantiateAsset(lakeAsset, targetScene);
         if (lake == null)
@@ -234,13 +252,23 @@ public class StealEggsLakeInstaller : EditorWindow
             return;
         }
         Undo.RegisterCreatedObjectUndo(lake, "Place Lake Asset");
-        lake.name = "Lake_Terrain_Imported";
-        lake.transform.SetParent(group.transform, true);
+        lake.name = "SUNLIT LAKESIDE - Free Low Poly Nature Lake";
+        lake.transform.SetParent(group.transform, false);
         lake.transform.position = lakePosition;
-        lake.transform.localScale = lake.transform.localScale * lakeScale;
+
+        Bounds beforeScale = GetBounds(lake);
+        if (beforeScale.size.x > 0.01f && beforeScale.size.z > 0.01f)
+        {
+            float fitScale = Mathf.Min(25f / beforeScale.size.x, 20f / beforeScale.size.z);
+            fitScale = Mathf.Clamp(fitScale, 0.02f, 100f);
+            lake.transform.localScale *= fitScale * lakeScale;
+        }
 
         Bounds b = GetBounds(lake);
-        Vector3 correction = new Vector3(lakePosition.x - b.center.x, 0f, lakePosition.z - b.center.z);
+        Vector3 correction = new Vector3(
+            lakePosition.x - b.center.x,
+            lakePosition.y - b.min.y,
+            lakePosition.z - b.center.z);
         lake.transform.position += correction;
         b = GetBounds(lake);
 
@@ -252,8 +280,8 @@ public class StealEggsLakeInstaller : EditorWindow
         Selection.activeGameObject = group;
         EditorSceneManager.MarkSceneDirty(targetScene);
         Undo.CollapseUndoOperations(undoGroup);
-        status = "Đã thêm khu hồ vào scene hiện tại. Hãy kiểm tra vị trí và tỉ lệ trong Scene view, sau đó Ctrl+S. " +
-                 "Nếu model được chọn không phải tile hồ, nhấn Ctrl+Z và kéo đúng asset Lake vào ô hồ.";
+        status = "Đã thay mặt nước cũ bằng asset hồ mới trong scene đang mở. Kiểm tra vị trí/kích thước rồi Ctrl+S. " +
+                 "Nếu hình sai, nhấn Ctrl+Z; kiểm tra ô Mô hình/Prefab hồ có trỏ đúng tile Lake của Pure Poly.";
     }
 
     private static GameObject InstantiateAsset(GameObject asset, Scene scene)
