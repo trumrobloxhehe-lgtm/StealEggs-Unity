@@ -1135,8 +1135,12 @@ public static class StealEggsDemoSetup
             {
                 water.SetFloat("_Surface", 1f);
                 water.SetFloat("_ZWrite", 0f);
+                water.SetFloat("_AlphaClip", 0f);
+                if (water.HasProperty("_SrcBlend")) water.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+                if (water.HasProperty("_DstBlend")) water.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
                 water.SetOverrideTag("RenderType", "Transparent");
                 water.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                water.DisableKeyword("_ALPHATEST_ON");
                 water.renderQueue = (int)RenderQueue.Transparent;
             }
             else if (water.HasProperty("_Mode"))
