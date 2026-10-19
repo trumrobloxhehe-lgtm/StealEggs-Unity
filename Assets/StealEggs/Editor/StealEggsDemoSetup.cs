@@ -350,81 +350,15 @@ public static class StealEggsDemoSetup
 
     private static void Tree(Vector3 pos, Material trunkMat, Material leafMat, float scale = 1f)
     {
-        // Use real imported Nature Pack prefabs whenever available.
         List<GameObject> treePrefabs = FindNaturePrefabs(
             "tree", "oak", "pine", "fir", "birch", "maple", "palm", "spruce", "willow", "broadleaf", "redwood", "cedar", "cypress", "eurya", "laurel", "bamboo", "cherryblossom", "planetree", "ginkgo", "japanesecedar", "japanesecypress", "sawtoothoak", "dawnredwood");
-        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(3.8f, 5.2f) * scale))
+        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(5.2f, 7.4f) * scale))
             return;
 
-        // Fallback for a clean project without the Nature Pack imported yet.
-        GameObject treeRoot = new GameObject("Natural Broadleaf Tree");
+        GameObject treeRoot = new GameObject("Tree");
         treeRoot.transform.position = pos;
-        treeRoot.transform.localScale = Vector3.one * scale;
         treeRoot.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-
-        Material barkLight = Mat("Bark_" + trunkMat.name + "_Light", new Color(.40f, .22f, .10f));
-        Material leafLight = Mat("Foliage_" + leafMat.name + "_Sunlit", Color.Lerp(leafMat.color, Color.white, .14f));
-        Material leafShadow = Mat("Foliage_" + leafMat.name + "_Shadow", Color.Lerp(leafMat.color, new Color(.035f, .09f, .025f), .22f));
-
-        float height = Random.Range(3.2f, 4.5f);
-        GameObject trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        trunk.name = "Rough Bark Trunk";
-        trunk.transform.SetParent(treeRoot.transform, false);
-        trunk.transform.localPosition = new Vector3(0f, height * .45f, 0f);
-        trunk.transform.localScale = new Vector3(Random.Range(.19f, .27f), height * .45f, Random.Range(.19f, .27f));
-        trunk.transform.localRotation = Quaternion.Euler(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f));
-        trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
-        RemoveCollider(trunk);
-
-        for (int i = 0; i < 4; i++)
-        {
-            float angle = i * 90f + Random.Range(-16f, 16f);
-            Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-            Vector3 start = new Vector3(0f, .35f, 0f);
-            Vector3 end = direction * Random.Range(.65f, .95f) + new Vector3(0f, .10f, 0f);
-            CreateBranch(treeRoot.transform, start, end, .11f, barkLight, "Flared Tree Root");
-        }
-
-        int branchCount = Random.Range(3, 5);
-        for (int i = 0; i < branchCount; i++)
-        {
-            float height01 = Random.Range(.42f, .76f);
-            float angle = i * (360f / branchCount) + Random.Range(-20f, 20f);
-            Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-            Vector3 start = new Vector3(0f, height * height01, 0f);
-            Vector3 end = start + direction * Random.Range(.85f, 1.25f) + Vector3.up * Random.Range(.35f, .8f);
-            CreateBranch(treeRoot.transform, start, end, .075f, barkLight, "Branch");
-        }
-
-        int clusterCount = Random.Range(8, 12);
-        for (int i = 0; i < clusterCount; i++)
-        {
-            float ring = i % 3;
-            float angle = i * 137.5f + Random.Range(-18f, 18f);
-            float radius = ring == 0 ? .25f : ring == 1 ? .80f : 1.08f;
-            Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(radius, 0f, 0f);
-            float leafSize = Random.Range(.72f, 1.18f);
-            GameObject cluster = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            cluster.name = "Leaf Cluster";
-            cluster.transform.SetParent(treeRoot.transform, false);
-            cluster.transform.localPosition = new Vector3(offset.x, height * .77f + Random.Range(-.35f, .45f), offset.z);
-            cluster.transform.localScale = new Vector3(leafSize * 1.14f, leafSize * Random.Range(.72f, 1.08f), leafSize);
-            cluster.transform.localRotation = Quaternion.Euler(Random.Range(-12f, 12f), angle, Random.Range(-12f, 12f));
-            cluster.GetComponent<Renderer>().sharedMaterial = i % 4 == 0 ? leafShadow : (i % 3 == 0 ? leafLight : leafMat);
-            RemoveCollider(cluster);
-        }
-
-        for (int i = 0; i < 3; i++)
-        {
-            float angle = i * 120f + Random.Range(-25f, 25f);
-            Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(.7f, 0f, 0f);
-            GameObject shrub = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            shrub.name = "Tree Base Shrub";
-            shrub.transform.position = pos + new Vector3(offset.x, .32f * scale, offset.z);
-            shrub.transform.localScale = new Vector3(.72f * scale, .48f * scale, .72f * scale);
-            shrub.GetComponent<Renderer>().sharedMaterial = i == 0 ? leafShadow : leafMat;
-            RemoveCollider(shrub);
-        }
+        StealEggsFoliage.Build(treeRoot.transform, pos, trunkMat, leafMat, scale);
     }
 
     private static void CreateBranch(Transform parent, Vector3 start, Vector3 end, float thickness, Material material, string objectName)
