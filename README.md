@@ -29,6 +29,16 @@ This project is an original, Roblox-inspired egg-stealing simulator prototype. I
 
 If you keep using an older local project, copy the repository's complete `Assets/StealEggs` folder into your project's `Assets` folder and replace files with the same names; then let Unity compile and run the menu command.
 
+## Add the Free Low Poly Nature Forest lake
+1. Import the **Free Low Poly Nature Forest** asset into the same Unity project. The asset itself is not included in this repository.
+2. Pull the latest `main` branch so `Assets/StealEggs/Editor/StealEggsLakeInstaller.cs` is added to your project.
+3. Wait for Unity to finish compiling, then open **Tools → Steal Eggs → Lake Asset Installer**.
+4. Click **Tự tìm asset hồ, cây, đá và scene demo**. If the automatic search picks the wrong item, drag the correct lake tile/model, tree prefab, rock prefab, or demo scene from the Project window into the matching fields.
+5. **Save a backup of your scene first.** To try a single lake tile, use **TẠO KHU HỒ**. To copy the demo environment, first use a duplicate scene and set an X offset so it will not cover the existing map.
+6. Inspect the result in Scene view and save with Ctrl+S. If the wrong object appears or the layout is misplaced, use Undo (Ctrl+Z).
+
+The installer is a Unity Editor utility; it does not automatically modify a scene when the repository is pulled. Automatic asset matching is best-effort, so check the selected asset before building the lake area. The package and its meshes/materials remain local to your Unity project and must be imported separately.
+
 ## Controls
 - **W/A/S/D** or arrow keys: move relative to camera.
 - **Hold right mouse + drag:** rotate camera.
