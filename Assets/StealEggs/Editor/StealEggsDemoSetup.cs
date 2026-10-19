@@ -65,26 +65,13 @@ public static class StealEggsDemoSetup
         GroundPatch("WOODLAND GROVE", new Vector3(-11.5f, .008f, 0f), new Vector3(3.3f, 1f, 10.9f), woodland);
         GroundPatch("SUNLIT LAKESIDE", new Vector3(20.5f, .009f, 0f), new Vector3(3.1f, 1f, 10.9f), lakeside);
         GroundPatch("ANCIENT RUINS", new Vector3(58f, .010f, 0f), new Vector3(4.4f, 1f, 10.9f), ruins);
-        Cube("Grand Stone Road", new Vector3(0f, .045f, 0f), new Vector3(148f, .07f, 8.5f), path);
+        Cube("Narrow Forest Trail", new Vector3(0f, .045f, 0f), new Vector3(148f, .07f, 3.8f), path);
         Cube("North Perimeter Wall", new Vector3(0f, 1.1f, 54.5f), new Vector3(160f, 2.2f, .8f), fence);
         Cube("South Perimeter Wall", new Vector3(0f, 1.1f, -54.5f), new Vector3(160f, 2.2f, .8f), fence);
         Cube("West Perimeter Wall", new Vector3(-79.5f, 1.1f, 0f), new Vector3(.8f, 2.2f, 110f), fence);
         Cube("East Perimeter Wall", new Vector3(79.5f, 1.1f, 0f), new Vector3(.8f, 2.2f, 110f), fence);
 
-        // The dense outer forest is placed after eggs spawn, so tree trunks avoid egg pickup points.
-        for (int i = 0; i < 46; i++)
-        {
-            float x = Random.Range(-73f, 73f);
-            float z = Random.Range(-39f, 39f);
-            if (Mathf.Abs(z) < 11f || Mathf.Abs(x + 65f) < 12f || Mathf.Abs(x - 65f) < 12f ||
-                Mathf.Abs(x + 28f) < 4.5f || Mathf.Abs(x - 5f) < 4.5f || Mathf.Abs(x - 36f) < 4.5f)
-                continue;
-            Material foliage = x < 5f ? leaves : x < 36f ? eggRare : ruins;
-            Tree(new Vector3(x, 0f, z), trunk, foliage, Random.Range(.65f, 1.15f));
-            if (i % 3 == 0) Rock(new Vector3(x + Random.Range(-2f, 2f), .15f, z + Random.Range(-2f, 2f)), i % 2 == 0 ? crystal : fence, Random.Range(.5f, 1.25f));
-            if (i % 4 == 0) FlowerPatch(new Vector3(x + 2f, 0f, z - 1.5f), flower);
-        }
-
+        // Dense forest placement runs after eggs and gameplay landmarks are created below.
         if (!CreateNaturalGroundCover()) CreateGrassDetails();
 
         Transform blueBase = Base("BLUE HOME BASE", new Vector3(-65f, .12f, 0f), blue);
@@ -350,13 +337,15 @@ public static class StealEggsDemoSetup
     {
         List<GameObject> treePrefabs = FindNaturePrefabs(
             "tree", "oak", "pine", "fir", "birch", "maple", "palm", "spruce", "willow", "broadleaf", "redwood", "cedar", "cypress", "eurya", "laurel", "bamboo", "cherryblossom", "planetree", "ginkgo", "japanesecedar", "japanesecypress", "sawtoothoak", "dawnredwood");
-        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(10.5f, 14.5f) * scale))
+        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(12f, 15.5f) * scale, true))
             return;
 
-        GameObject treeRoot = new GameObject("Tree");
+        GameObject treeRoot = new GameObject("Large Procedural Forest Tree");
         treeRoot.transform.position = pos;
         treeRoot.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
         StealEggsFoliage.Build(treeRoot.transform, pos, trunkMat, leafMat, scale);
+        treeRoot.transform.localScale *= 1.35f;
+        AddTreeTrunkCollider(treeRoot);
     }
 
     private static void CreateBranch(Transform parent, Vector3 start, Vector3 end, float thickness, Material material, string objectName)
@@ -615,7 +604,7 @@ public static class StealEggsDemoSetup
         return cached;
     }
 
-    private static bool TryPlaceNaturePrefab(List<GameObject> candidates, Vector3 position, float desiredHeight)
+    private static bool TryPlaceNaturePrefab(List<GameObject> candidates, Vector3 position, float desiredHeight, bool solidTreeTrunk = false)
     {
         if (candidates == null || candidates.Count == 0) return false;
 
@@ -641,7 +630,38 @@ public static class StealEggsDemoSetup
         if (TryGetRendererBounds(instance, out bounds))
             instance.transform.position += Vector3.up * (position.y - bounds.min.y);
 
+        if (solidTreeTrunk)
+            AddTreeTrunkCollider(instance);
+
         return true;
+    }
+
+    private static void AddTreeTrunkCollider(GameObject tree)
+    {
+        if (tree == null || !TryGetRendererBounds(tree, out Bounds bounds)) return;
+
+        // Canopies often include large or inaccurate mesh colliders. Replace them with trunk-only collision.
+        Collider[] oldColliders = tree.GetComponentsInChildren<Collider>(true);
+        for (int i = 0; i < oldColliders.Length; i++)
+        {
+            if (oldColliders[i] != null)
+                Object.DestroyImmediate(oldColliders[i]);
+        }
+
+        if (!TryGetRendererBounds(tree, out bounds)) return;
+        float trunkHeight = Mathf.Clamp(bounds.size.y * .62f, 4.5f, 9.5f);
+        float trunkRadius = Mathf.Clamp(Mathf.Min(bounds.size.x, bounds.size.z) * .075f, .42f, 1.05f);
+
+        GameObject collisionObject = new GameObject(tree.name + " - Solid Trunk");
+        collisionObject.transform.position = new Vector3(
+            tree.transform.position.x,
+            bounds.min.y + trunkHeight * .5f,
+            tree.transform.position.z);
+
+        CapsuleCollider trunkCollider = collisionObject.AddComponent<CapsuleCollider>();
+        trunkCollider.direction = 1;
+        trunkCollider.height = trunkHeight;
+        trunkCollider.radius = Mathf.Min(trunkRadius, trunkHeight * .45f);
     }
 
     private static bool TryGetRendererBounds(GameObject obj, out Bounds bounds)
@@ -670,41 +690,92 @@ public static class StealEggsDemoSetup
 
     private static void CreateDenseForest(Material trunkMat, Material leafMat)
     {
-        // Six staggered rows create a dense, tall woodland backdrop while leaving the egg lanes playable.
-        float[] rows = { -50.5f, -45.5f, -40.5f, 40.5f, 45.5f, 50.5f };
+        // Jittered grid across the whole play area: overlapping crowns make it read as one continuous forest.
+        // We leave a narrow trail and clear rings only around pickups and important interaction spots.
         EggPickup[] eggs = Object.FindObjectsByType<EggPickup>(FindObjectsSortMode.None);
-        int placed = 0;
-        const float spacing = 5.0f;
+        List<Vector2> candidates = new List<Vector2>();
+        const float spacing = 5.1f;
 
-        for (int row = 0; row < rows.Length; row++)
+        for (float baseX = -76f; baseX <= 76f; baseX += spacing)
         {
-            float stagger = row % 2 == 0 ? 0f : spacing * 0.5f;
-            for (float baseX = -76f + stagger; baseX <= 76f; baseX += spacing)
+            for (float baseZ = -50f; baseZ <= 50f; baseZ += spacing)
             {
-                float x = Mathf.Clamp(baseX + Random.Range(-0.55f, 0.55f), -77f, 77f);
-                float z = rows[row] + Random.Range(-0.55f, 0.55f);
-
-                bool tooCloseToEgg = false;
-                for (int i = 0; i < eggs.Length; i++)
-                {
-                    if (eggs[i] == null) continue;
-                    Vector2 treePoint = new Vector2(x, z);
-                    Vector2 eggPoint = new Vector2(eggs[i].transform.position.x, eggs[i].transform.position.z);
-                    if (Vector2.Distance(treePoint, eggPoint) < 4.7f)
-                    {
-                        tooCloseToEgg = true;
-                        break;
-                    }
-                }
-                if (tooCloseToEgg) continue;
-
-                // Vary height and rotation so the forest does not look like evenly repeated props.
-                Tree(new Vector3(x, 0f, z), trunkMat, leafMat, Random.Range(1.0f, 1.48f));
-                placed++;
+                candidates.Add(new Vector2(
+                    Mathf.Clamp(baseX + Random.Range(-1.65f, 1.65f), -77f, 77f),
+                    Mathf.Clamp(baseZ + Random.Range(-1.45f, 1.45f), -51f, 51f)));
             }
         }
 
-        Debug.Log("Steal Eggs: placed " + placed + " tall trees for the dense woodland border.");
+        // Shuffle the grid, so the density is distributed evenly instead of filling one side first.
+        for (int i = candidates.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            Vector2 swap = candidates[i];
+            candidates[i] = candidates[j];
+            candidates[j] = swap;
+        }
+
+        List<Vector2> placedPositions = new List<Vector2>();
+        const int targetTreeCount = 320;
+        const float minimumTrunkSpacing = 4.35f;
+
+        for (int i = 0; i < candidates.Count && placedPositions.Count < targetTreeCount; i++)
+        {
+            Vector2 p = candidates[i];
+
+            // Keep a narrow walkable forest trail instead of a giant empty road.
+            if (Mathf.Abs(p.y) < 2.35f)
+                continue;
+
+            // Clear interaction spaces around the two bases, spawn spots, training pad, and pet display.
+            if (Vector2.Distance(p, new Vector2(-65f, 0f)) < 9.0f ||
+                Vector2.Distance(p, new Vector2(65f, 0f)) < 8.5f ||
+                Vector2.Distance(p, new Vector2(-64f, -14f)) < 6.0f ||
+                Vector2.Distance(p, new Vector2(-65f, 16f)) < 7.0f)
+                continue;
+
+            // Leave room around zone gates and guardians so they cannot be sealed behind tree trunks.
+            if (Vector2.Distance(p, new Vector2(-28f, 0f)) < 4.1f ||
+                Vector2.Distance(p, new Vector2(5f, 0f)) < 4.1f ||
+                Vector2.Distance(p, new Vector2(36f, 0f)) < 4.1f ||
+                Vector2.Distance(p, new Vector2(-47f, 16f)) < 4.5f ||
+                Vector2.Distance(p, new Vector2(-12f, -18f)) < 4.5f ||
+                Vector2.Distance(p, new Vector2(22f, 16f)) < 4.5f ||
+                Vector2.Distance(p, new Vector2(57f, -18f)) < 4.5f)
+                continue;
+
+            // Avoid hiding eggs inside trunks/canopies; all other areas remain densely wooded.
+            bool nearEgg = false;
+            for (int e = 0; e < eggs.Length; e++)
+            {
+                if (eggs[e] == null) continue;
+                Vector2 eggPoint = new Vector2(eggs[e].transform.position.x, eggs[e].transform.position.z);
+                if ((p - eggPoint).sqrMagnitude < 4.2f * 4.2f)
+                {
+                    nearEgg = true;
+                    break;
+                }
+            }
+            if (nearEgg) continue;
+
+            bool tooCloseToAnotherTree = false;
+            for (int t = 0; t < placedPositions.Count; t++)
+            {
+                if ((p - placedPositions[t]).sqrMagnitude < minimumTrunkSpacing * minimumTrunkSpacing)
+                {
+                    tooCloseToAnotherTree = true;
+                    break;
+                }
+            }
+            if (tooCloseToAnotherTree) continue;
+
+            float size = Random.Range(1.02f, 1.40f);
+            Tree(new Vector3(p.x, 0f, p.y), trunkMat, leafMat, size);
+            placedPositions.Add(p);
+        }
+
+        Debug.Log("Steal Eggs: created " + placedPositions.Count +
+            " large forest trees across the play area. Trunks use solid capsule collision.");
     }
 
     private static bool CreateNaturalGroundCover()
