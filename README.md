@@ -30,15 +30,22 @@ This project is an original, Roblox-inspired egg-stealing simulator prototype. I
 If you keep using an older local project, copy the repository's complete `Assets/StealEggs` folder into your project's `Assets` folder and replace files with the same names; then let Unity compile and run the menu command.
 
 ## Add the Free Low Poly Nature Forest lake
-1. Import the **Free Low Poly Nature Forest** asset into the same Unity project. The asset itself is not included in this repository.
-2. Pull the latest `main` branch so `Assets/StealEggs/Editor/StealEggsLakeInstaller.cs` is added to your project.
-3. Wait for Unity to finish compiling, then open **Tools → Steal Eggs → Lake Asset Installer**.
-4. Click **Tự tìm asset hồ, cây, đá và scene demo**. If the automatic search picks the wrong item, drag the correct lake tile/model, tree prefab, rock prefab, or demo scene from the Project window into the matching fields.
-5. **Save a backup of your scene first.** To try a single lake tile, use **TẠO KHU HỒ**. To copy the demo environment, first use a duplicate scene and set an X offset so it will not cover the existing map.
-6. Inspect the result in Scene view and save with Ctrl+S. If the wrong object appears or the layout is misplaced, use Undo (Ctrl+Z).
 
-The installer is a Unity Editor utility; it does not automatically modify a scene when the repository is pulled. Automatic asset matching is best-effort, so check the selected asset before building the lake area. The package and its meshes/materials remain local to your Unity project and must be imported separately.
+The lake asset package must be imported locally in Unity; its licensed model files are not included in this repository.
 
+### Replace the water in the current scene
+1. Pull the latest `main` branch and wait for Unity to compile the new editor scripts.
+2. Open **Tools → Steal Eggs → Lake Asset Installer**.
+3. Click **Tự tìm asset hồ, cây, đá và scene demo**. Confirm that the **Mô hình/Prefab hồ** field points to a Lake terrain tile from the imported Pure Poly pack. If it does not, drag the correct Lake tile from the Project window into that field.
+4. Click **THAY HỒ CŨ BẰNG ASSET HỒ MỚI**, inspect the result in Scene view, and press Ctrl+S. The tool removes the known old water surface object only; it leaves the rest of the current scene in place. Use Ctrl+Z if the selected model is wrong.
+
+### Rebuild the demo arena
+1. With the asset package imported, choose **Steal Eggs → Build Demo Arena**.
+2. The generator searches the imported assets for a Lake terrain tile and uses it instead of creating the old water surface when it detects one.
+3. If the Console reports that the Lake tile was not detected, the generator uses a static fallback surface; open Lake Asset Installer and manually assign the right tile to the field.
+4. Save a backup first: rebuilding the demo arena regenerates the demo scene and can replace edits made to that scene.
+
+The tool fits the selected Lake model to the existing lakeside zone as a starting point. Check the model's position and scale in Scene view after placement. The terrain, meshes, and materials remain local to your Unity project; do not upload asset-store files to this repository unless the asset license explicitly allows redistribution.
 ## Controls
 - **W/A/S/D** or arrow keys: move relative to camera.
 - **Hold right mouse + drag:** rotate camera.
