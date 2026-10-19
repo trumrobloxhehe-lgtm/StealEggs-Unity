@@ -158,6 +158,7 @@ public static class StealEggsDemoSetup
         Material ancientRock = Mat("AncientRockFace", new Color(.43f, .42f, .38f));
         TryApplyDownloadedStoneTexture(ancientRock, "rock_face_01", "rockface01", "rock_face");
         CreateAncientRuins(ancientStone, ancientRock);
+        CreateLakesideFeatures(ancientRock);
         CreateDenseForest(trunk, leaves);
 
         GameObject managerObj = new GameObject("Steal Eggs Game Manager");
@@ -644,9 +645,125 @@ public static class StealEggsDemoSetup
         if (solidTreeTrunk)
             AddTreeTrunkCollider(instance);
         else if (solidMeshCollision)
+        {
+            MakePrefabMaterialsURPCompatible(instance);
             AddSolidMeshColliders(instance);
+        }
 
         return true;
+    }
+
+    private static void MakePrefabMaterialsURPCompatible(GameObject root)
+    {
+        Shader urpLit = Shader.Find("Universal Render Pipeline/Lit");
+        if (root == null || urpLit == null)
+        {
+            Debug.LogWarning("Steal Eggs: could not find the URP/Lit shader. Check Project Settings > Graphics and the URP package.");
+            return;
+        }
+
+        EnsureFolder(MaterialsPath + "/URPConverted");
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        int convertedCount = 0;
+
+        for (int r = 0; r < renderers.Length; r++)
+        {
+            Renderer renderer = renderers[r];
+            if (renderer == null) continue;
+            Material[] sourceMaterials = renderer.sharedMaterials;
+            Material[] finalMaterials = new Material[sourceMaterials.Length];
+
+            for (int m = 0; m < sourceMaterials.Length; m++)
+            {
+                Material source = sourceMaterials[m];
+                if (source == null)
+                {
+                    finalMaterials[m] = new Material(urpLit);
+                    finalMaterials[m].name = "AncientRuins_Default_URP";
+                    continue;
+                }
+
+                if (source.shader == urpLit)
+                {
+                    finalMaterials[m] = source;
+                    continue;
+                }
+
+                Texture baseTexture = null;
+                Texture normalTexture = null;
+                Vector2 tiling = Vector2.one;
+                Vector2 offset = Vector2.zero;
+                Color tint = Color.white;
+                float metallic = 0f;
+                float smoothness = .28f;
+
+                if (source.HasProperty("_BaseMap")) baseTexture = source.GetTexture("_BaseMap");
+                if (baseTexture == null && source.HasProperty("_MainTex")) baseTexture = source.GetTexture("_MainTex");
+                if (baseTexture == null) baseTexture = source.mainTexture;
+                if (source.HasProperty("_BaseMap")) { tiling = source.GetTextureScale("_BaseMap"); offset = source.GetTextureOffset("_BaseMap"); }
+                else if (source.HasProperty("_MainTex")) { tiling = source.GetTextureScale("_MainTex"); offset = source.GetTextureOffset("_MainTex"); }
+
+                if (source.HasProperty("_BumpMap")) normalTexture = source.GetTexture("_BumpMap");
+                else if (source.HasProperty("_NormalMap")) normalTexture = source.GetTexture("_NormalMap");
+
+                if (source.HasProperty("_BaseColor")) tint = source.GetColor("_BaseColor");
+                else if (source.HasProperty("_Color")) tint = source.GetColor("_Color");
+                else tint = source.color;
+                // A missing built-in shader often renders magenta. Do not carry that error tint into URP.
+                if (tint.r > .82f && tint.b > .82f && tint.g < .28f) tint = Color.white;
+
+                if (source.HasProperty("_Metallic")) metallic = source.GetFloat("_Metallic");
+                if (source.HasProperty("_Smoothness")) smoothness = source.GetFloat("_Smoothness");
+                else if (source.HasProperty("_Glossiness")) smoothness = source.GetFloat("_Glossiness");
+
+                string sourcePath = AssetDatabase.GetAssetPath(source);
+                string identity = (sourcePath + "|" + source.name).ToLowerInvariant();
+                uint hash = 2166136261;
+                for (int h = 0; h < identity.Length; h++)
+                {
+                    hash ^= identity[h];
+                    hash *= 16777619;
+                }
+                string safeName = source.name;
+                foreach (char invalid in Path.GetInvalidFileNameChars())
+                    safeName = safeName.Replace(invalid.ToString(), "_");
+                string materialPath = MaterialsPath + "/URPConverted/" + safeName + "_" + hash.ToString("X8") + ".mat";
+                Material converted = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+                if (converted == null)
+                {
+                    converted = new Material(urpLit);
+                    converted.name = safeName + "_URP";
+                    AssetDatabase.CreateAsset(converted, materialPath);
+                }
+                else
+                {
+                    converted.shader = urpLit;
+                }
+
+                if (converted.HasProperty("_BaseMap"))
+                {
+                    converted.SetTexture("_BaseMap", baseTexture);
+                    converted.SetTextureScale("_BaseMap", tiling);
+                    converted.SetTextureOffset("_BaseMap", offset);
+                }
+                if (converted.HasProperty("_BaseColor")) converted.SetColor("_BaseColor", tint);
+                if (converted.HasProperty("_Metallic")) converted.SetFloat("_Metallic", Mathf.Clamp01(metallic));
+                if (converted.HasProperty("_Smoothness")) converted.SetFloat("_Smoothness", Mathf.Clamp01(smoothness));
+                if (normalTexture != null && converted.HasProperty("_BumpMap"))
+                {
+                    converted.SetTexture("_BumpMap", normalTexture);
+                    converted.EnableKeyword("_NORMALMAP");
+                }
+                converted.enableInstancing = true;
+                EditorUtility.SetDirty(converted);
+                finalMaterials[m] = converted;
+                convertedCount++;
+            }
+
+            renderer.sharedMaterials = finalMaterials;
+        }
+
+        Debug.Log("Steal Eggs: made " + convertedCount + " imported architecture material(s) URP-compatible.");
     }
 
     private static void AddSolidMeshColliders(GameObject obj)
@@ -995,25 +1112,89 @@ public static class StealEggsDemoSetup
         Random.state = oldState;
     }
 
+    private static void CreateLakesideFeatures(Material shoreRockMaterial)
+    {
+        Shader waterShader = Shader.Find("Universal Render Pipeline/Lit");
+        if (waterShader == null) waterShader = Shader.Find("Standard");
+        if (waterShader != null)
+        {
+            const string waterPath = MaterialsPath + "/LakesideWater.mat";
+            Material water = AssetDatabase.LoadAssetAtPath<Material>(waterPath);
+            if (water == null)
+            {
+                water = new Material(waterShader);
+                water.name = "LakesideWater";
+                AssetDatabase.CreateAsset(water, waterPath);
+            }
+            else water.shader = waterShader;
+
+            Color waterColor = new Color(.075f, .38f, .47f, .72f);
+            if (water.HasProperty("_BaseColor")) water.SetColor("_BaseColor", waterColor);
+            if (water.HasProperty("_Color")) water.SetColor("_Color", waterColor);
+            if (water.HasProperty("_Surface"))
+            {
+                water.SetFloat("_Surface", 1f);
+                water.SetFloat("_ZWrite", 0f);
+                water.SetOverrideTag("RenderType", "Transparent");
+                water.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                water.renderQueue = (int)RenderQueue.Transparent;
+            }
+            else if (water.HasProperty("_Mode"))
+            {
+                water.SetFloat("_Mode", 3f);
+                water.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+                water.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+                water.SetInt("_ZWrite", 0);
+                water.DisableKeyword("_ALPHATEST_ON");
+                water.EnableKeyword("_ALPHABLEND_ON");
+                water.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                water.SetOverrideTag("RenderType", "Transparent");
+                water.renderQueue = (int)RenderQueue.Transparent;
+            }
+            if (water.HasProperty("_Smoothness")) water.SetFloat("_Smoothness", .88f);
+            if (water.HasProperty("_Glossiness")) water.SetFloat("_Glossiness", .88f);
+            if (water.HasProperty("_Metallic")) water.SetFloat("_Metallic", .04f);
+            EditorUtility.SetDirty(water);
+
+            GameObject lake = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            lake.name = "SUNLIT LAKESIDE - Shallow Water";
+            lake.transform.position = new Vector3(20f, .035f, -42f);
+            lake.transform.localScale = new Vector3(2.05f, 1f, 1.55f);
+            lake.GetComponent<Renderer>().sharedMaterial = water;
+            Collider waterCollider = lake.GetComponent<Collider>();
+            if (waterCollider != null) Object.DestroyImmediate(waterCollider);
+        }
+
+        // Small stones ring the bank, keeping the central lane and egg locations accessible.
+        for (int i = 0; i < 18; i++)
+        {
+            float angle = (360f / 18f) * i + Random.Range(-7f, 7f);
+            Vector3 shore = new Vector3(
+                20f + Mathf.Cos(angle * Mathf.Deg2Rad) * Random.Range(9.8f, 11.5f),
+                .10f,
+                -42f + Mathf.Sin(angle * Mathf.Deg2Rad) * Random.Range(7.1f, 8.6f));
+            Rock(shore, shoreRockMaterial, Random.Range(.38f, .78f));
+        }
+        Debug.Log("Steal Eggs: added a distinct lakeside water feature and rocky shoreline.");
+    }
+
     private static void CreateDenseForest(Material trunkMat, Material leafMat)
     {
-        // Jittered grid across the whole play area: overlapping crowns make it read as one continuous forest.
-        // We leave a narrow trail and clear rings only around pickups and important interaction spots.
+        // Woodland is the only densely wooded region. Lakeside and Ancient Ruins use their own visual identity.
         EggPickup[] eggs = Object.FindObjectsByType<EggPickup>(FindObjectsSortMode.None);
         List<Vector2> candidates = new List<Vector2>();
-        const float spacing = 5.1f;
+        const float spacing = 4.2f;
 
-        for (float baseX = -76f; baseX <= 76f; baseX += spacing)
+        for (float baseX = -27f; baseX <= 4.2f; baseX += spacing)
         {
             for (float baseZ = -50f; baseZ <= 50f; baseZ += spacing)
             {
                 candidates.Add(new Vector2(
-                    Mathf.Clamp(baseX + Random.Range(-1.65f, 1.65f), -77f, 77f),
-                    Mathf.Clamp(baseZ + Random.Range(-1.45f, 1.45f), -51f, 51f)));
+                    Mathf.Clamp(baseX + Random.Range(-1.1f, 1.1f), -27.5f, 4.8f),
+                    Mathf.Clamp(baseZ + Random.Range(-1.25f, 1.25f), -51f, 51f)));
             }
         }
 
-        // Shuffle the grid, so the density is distributed evenly instead of filling one side first.
         for (int i = candidates.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
@@ -1023,53 +1204,28 @@ public static class StealEggsDemoSetup
         }
 
         List<Vector2> placedPositions = new List<Vector2>();
-        const int targetTreeCount = 320;
-        const float minimumTrunkSpacing = 4.35f;
+        const int targetTreeCount = 145;
+        const float minimumTrunkSpacing = 3.65f;
 
         for (int i = 0; i < candidates.Count && placedPositions.Count < targetTreeCount; i++)
         {
             Vector2 p = candidates[i];
 
-            // Keep a narrow walkable forest trail instead of a giant empty road.
-            if (Mathf.Abs(p.y) < 2.35f)
+            // Keep a narrow trail through the forest.
+            if (Mathf.Abs(p.y) < 2.8f)
                 continue;
 
-            // Clear interaction spaces around the two bases, spawn spots, training pad, and pet display.
-            if (Vector2.Distance(p, new Vector2(-65f, 0f)) < 9.0f ||
-                Vector2.Distance(p, new Vector2(65f, 0f)) < 8.5f ||
-                Vector2.Distance(p, new Vector2(-64f, -14f)) < 6.0f ||
-                Vector2.Distance(p, new Vector2(-65f, 16f)) < 7.0f)
+            // Clear the Woodland Gate and guardian arena.
+            if (Vector2.Distance(p, new Vector2(-28f, 0f)) < 4.5f ||
+                Vector2.Distance(p, new Vector2(-12f, -18f)) < 4.7f)
                 continue;
 
-            // Leave clear building footprints for the Ancient Ruins landmark clusters.
-            bool insideRuinFootprint = false;
-            for (int ruin = 0; ruin < AncientRuinAnchors.Length; ruin++)
-            {
-                if (Vector2.Distance(p, AncientRuinAnchors[ruin]) < 8.5f)
-                {
-                    insideRuinFootprint = true;
-                    break;
-                }
-            }
-            if (insideRuinFootprint) continue;
-
-            // Leave room around zone gates and guardians so they cannot be sealed behind tree trunks.
-            if (Vector2.Distance(p, new Vector2(-28f, 0f)) < 4.1f ||
-                Vector2.Distance(p, new Vector2(5f, 0f)) < 4.1f ||
-                Vector2.Distance(p, new Vector2(36f, 0f)) < 4.1f ||
-                Vector2.Distance(p, new Vector2(-47f, 16f)) < 4.5f ||
-                Vector2.Distance(p, new Vector2(-12f, -18f)) < 4.5f ||
-                Vector2.Distance(p, new Vector2(22f, 16f)) < 4.5f ||
-                Vector2.Distance(p, new Vector2(57f, -18f)) < 4.5f)
-                continue;
-
-            // Avoid hiding eggs inside trunks/canopies; all other areas remain densely wooded.
             bool nearEgg = false;
             for (int e = 0; e < eggs.Length; e++)
             {
                 if (eggs[e] == null) continue;
                 Vector2 eggPoint = new Vector2(eggs[e].transform.position.x, eggs[e].transform.position.z);
-                if ((p - eggPoint).sqrMagnitude < 4.2f * 4.2f)
+                if ((p - eggPoint).sqrMagnitude < 3.45f * 3.45f)
                 {
                     nearEgg = true;
                     break;
@@ -1088,41 +1244,57 @@ public static class StealEggsDemoSetup
             }
             if (tooCloseToAnotherTree) continue;
 
-            float size = Random.Range(1.02f, 1.40f);
+            // Vary species size; silhouettes and crowns overlap like a forest, with gaps around the path.
+            float size = Random.Range(1.0f, 1.42f);
             Tree(new Vector3(p.x, 0f, p.y), trunkMat, leafMat, size);
             placedPositions.Add(p);
         }
 
         Debug.Log("Steal Eggs: created " + placedPositions.Count +
-            " large forest trees across the play area. Trunks use solid capsule collision.");
+            " large trees in Woodland Grove only. Lakeside and Ancient Ruins are kept tree-sparse.");
     }
 
     private static bool CreateNaturalGroundCover()
     {
-        List<GameObject> plants = FindNaturePrefabs("weed", "grass", "fern", "bush", "shrub", "clover", "plant", "mugwort", "viola", "eurya", "laurel", "bamboo", "fallenleaves");
-        if (plants.Count == 0) return false;
+        List<GameObject> forestPlants = FindNaturePrefabs(
+            "fern", "bush", "shrub", "clover", "weed", "grass", "fallenleaves", "moss", "plant");
+        List<GameObject> lakesidePlants = FindNaturePrefabs(
+            "reed", "cattail", "shore", "coastal", "seagrass", "grass", "weed", "plant", "fern");
+        int forestPlaced = 0;
+        int lakesidePlaced = 0;
 
-        int placed = 0;
-        const int attempts = 260;
-        for (int i = 0; i < attempts && placed < 125; i++)
+        // Woodland undergrowth only: ferns, shrubs, grass and leaf litter.
+        for (int i = 0; i < 560 && forestPlaced < 105 && forestPlants.Count > 0; i++)
         {
-            float x = Random.Range(-76f, 76f);
+            float x = Random.Range(-26.5f, 4.5f);
             float z = Random.Range(-50f, 50f);
-            if (Mathf.Abs(z) < 5.2f ||
-                Vector2.Distance(new Vector2(x, z), new Vector2(-65f, 0f)) < 10f ||
-                Vector2.Distance(new Vector2(x, z), new Vector2(65f, 0f)) < 10f ||
-                (Mathf.Abs(x + 64f) < 6f && Mathf.Abs(z + 14f) < 4f) ||
-                (Mathf.Abs(x + 28f) < 2.5f && Mathf.Abs(z) < 3.5f) ||
-                (Mathf.Abs(x - 5f) < 2.5f && Mathf.Abs(z) < 3.5f) ||
-                (Mathf.Abs(x - 36f) < 2.5f && Mathf.Abs(z) < 3.5f))
+            if (Mathf.Abs(z) < 3.4f ||
+                Vector2.Distance(new Vector2(x, z), new Vector2(-28f, 0f)) < 4.0f ||
+                Vector2.Distance(new Vector2(x, z), new Vector2(-12f, -18f)) < 3.5f)
                 continue;
 
-            if (TryPlaceNaturePrefab(plants, new Vector3(x, .02f, z), Random.Range(.35f, 1.05f)))
-                placed++;
+            if (TryPlaceNaturePrefab(forestPlants, new Vector3(x, .02f, z), Random.Range(.22f, .78f)))
+                forestPlaced++;
         }
 
-        Debug.Log("Steal Eggs: placed " + placed + " real ground-cover prefabs from the Nature Pack.");
-        return placed > 0;
+        // Lakeside vegetation is sparse and shore-bound, not duplicated across the desert ruins.
+        for (int i = 0; i < 240 && lakesidePlaced < 36 && lakesidePlants.Count > 0; i++)
+        {
+            float x = Random.Range(6.0f, 35.0f);
+            float z = Random.Range(-50f, 50f);
+            if (Mathf.Abs(z) < 3.0f ||
+                (Mathf.Abs(x - 20f) < 8.2f && Mathf.Abs(z + 42f) < 6.0f))
+                continue;
+
+            // Bias plants to the shores and outer edge rather than the sandy travel lanes.
+            if (Mathf.Abs(z) < 10f && Random.value < .75f) continue;
+            if (TryPlaceNaturePrefab(lakesidePlants, new Vector3(x, .02f, z), Random.Range(.22f, .60f)))
+                lakesidePlaced++;
+        }
+
+        Debug.Log("Steal Eggs: ground cover - woodland " + forestPlaced +
+            " clumps; lakeside " + lakesidePlaced + " shore plants; no shared grass layer on Ancient Ruins.");
+        return forestPlaced > 0 || lakesidePlaced > 0;
     }
 
     private static void ApplyNaturalTexture(Material material, string textureName, Color darkColor, Color lightColor, Vector2 tiling, bool verticalGrain)
@@ -1248,7 +1420,7 @@ public static class StealEggsDemoSetup
 
         for (int i = 0; i < tuftCount; i++)
         {
-            float x = Random.Range(-77f, 77f);
+            float x = Random.Range(-27f, 5f);
             float z = Random.Range(-51f, 51f);
             if (Mathf.Abs(z) < 4.8f ||
                 Vector2.Distance(new Vector2(x, z), new Vector2(-65f, 0f)) < 10f ||
