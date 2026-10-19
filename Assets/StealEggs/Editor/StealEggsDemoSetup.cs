@@ -1114,72 +1114,165 @@ public static class StealEggsDemoSetup
 
     private static void CreateLakesideFeatures(Material shoreRockMaterial)
     {
-        Shader waterShader = Shader.Find("Universal Render Pipeline/Lit");
-        if (waterShader == null) waterShader = Shader.Find("Standard");
-        if (waterShader != null)
+        // Prefer the actual Lake terrain tile from the imported Free Low Poly Nature Forest package.
+        // The package is imported locally in Unity and is intentionally not copied into this Git repository.
+        Bounds lakeBounds;
+        bool importedLakePlaced = TryPlaceImportedLakeTile(out lakeBounds);
+
+        if (!importedLakePlaced)
         {
-            const string waterPath = MaterialsPath + "/LakesideWater.mat";
-            Material water = AssetDatabase.LoadAssetAtPath<Material>(waterPath);
-            if (water == null)
+            // Safe static fallback: do not reuse the old transparent/shader-driven surface.
+            Shader waterShader = Shader.Find("Universal Render Pipeline/Lit");
+            if (waterShader == null) waterShader = Shader.Find("Standard");
+            if (waterShader != null)
             {
-                water = new Material(waterShader);
-                water.name = "LakesideWater";
-                AssetDatabase.CreateAsset(water, waterPath);
-            }
-            else water.shader = waterShader;
+                Material water = Mat("LakesideWaterStaticFallback", new Color(.035f, .30f, .43f));
+                if (water.HasProperty("_BaseColor")) water.SetColor("_BaseColor", new Color(.035f, .30f, .43f, 1f));
+                if (water.HasProperty("_Color")) water.SetColor("_Color", new Color(.035f, .30f, .43f, 1f));
+                if (water.HasProperty("_Surface")) water.SetFloat("_Surface", 0f);
+                if (water.HasProperty("_Smoothness")) water.SetFloat("_Smoothness", .78f);
+                if (water.HasProperty("_Glossiness")) water.SetFloat("_Glossiness", .78f);
+                EditorUtility.SetDirty(water);
 
-            Color waterColor = new Color(.075f, .38f, .47f, .72f);
-            if (water.HasProperty("_BaseColor")) water.SetColor("_BaseColor", waterColor);
-            if (water.HasProperty("_Color")) water.SetColor("_Color", waterColor);
-            if (water.HasProperty("_Surface"))
-            {
-                water.SetFloat("_Surface", 1f);
-                water.SetFloat("_ZWrite", 0f);
-                water.SetFloat("_AlphaClip", 0f);
-                if (water.HasProperty("_SrcBlend")) water.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-                if (water.HasProperty("_DstBlend")) water.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-                water.SetOverrideTag("RenderType", "Transparent");
-                water.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                water.DisableKeyword("_ALPHATEST_ON");
-                water.renderQueue = (int)RenderQueue.Transparent;
-            }
-            else if (water.HasProperty("_Mode"))
-            {
-                water.SetFloat("_Mode", 3f);
-                water.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-                water.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-                water.SetInt("_ZWrite", 0);
-                water.DisableKeyword("_ALPHATEST_ON");
-                water.EnableKeyword("_ALPHABLEND_ON");
-                water.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-                water.SetOverrideTag("RenderType", "Transparent");
-                water.renderQueue = (int)RenderQueue.Transparent;
-            }
-            if (water.HasProperty("_Smoothness")) water.SetFloat("_Smoothness", .88f);
-            if (water.HasProperty("_Glossiness")) water.SetFloat("_Glossiness", .88f);
-            if (water.HasProperty("_Metallic")) water.SetFloat("_Metallic", .04f);
-            EditorUtility.SetDirty(water);
+                GameObject fallbackLake = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                fallbackLake.name = "SUNLIT LAKESIDE - Static Water Fallback (Lake Asset Not Found)";
+                fallbackLake.transform.position = new Vector3(20f, .035f, -42f);
+                fallbackLake.transform.localScale = new Vector3(2.05f, 1f, 1.55f);
+                fallbackLake.GetComponent<Renderer>().sharedMaterial = water;
+                Collider fallbackCollider = fallbackLake.GetComponent<Collider>();
+                if (fallbackCollider != null) Object.DestroyImmediate(fallbackCollider);
+                lakeBounds = new Bounds(new Vector3(20f, .035f, -42f), new Vector3(20.5f, .05f, 15.5f));
 
-            GameObject lake = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            lake.name = "SUNLIT LAKESIDE - Shallow Water";
-            lake.transform.position = new Vector3(20f, .035f, -42f);
-            lake.transform.localScale = new Vector3(2.05f, 1f, 1.55f);
-            lake.GetComponent<Renderer>().sharedMaterial = water;
-            Collider waterCollider = lake.GetComponent<Collider>();
-            if (waterCollider != null) Object.DestroyImmediate(waterCollider);
+                Debug.LogWarning("Steal Eggs: the imported Free Low Poly Nature Forest Lake tile was not detected. " +
+                    "The scene has a static fallback surface instead. Import the asset package, then use Tools > Steal Eggs > Lake Asset Installer to place the real tile.");
+            }
+            else
+            {
+                lakeBounds = new Bounds(new Vector3(20f, .02f, -42f), new Vector3(20f, 1f, 15f));
+                Debug.LogError("Steal Eggs: could not find a supported shader or the imported Lake terrain asset.");
+            }
         }
 
-        // Small stones ring the bank, keeping the central lane and egg locations accessible.
-        for (int i = 0; i < 18; i++)
+        // Light shoreline dressing follows the actual bounds of the selected lake tile.
+        // Keep it sparse so it does not cover the water or obstruct the route and eggs.
+        for (int i = 0; i < 14; i++)
         {
-            float angle = (360f / 18f) * i + Random.Range(-7f, 7f);
+            float angle = (360f / 14f) * i + Random.Range(-6f, 6f);
+            float rx = lakeBounds.extents.x + Random.Range(.35f, 1.25f);
+            float rz = lakeBounds.extents.z + Random.Range(.35f, 1.1f);
             Vector3 shore = new Vector3(
-                20f + Mathf.Cos(angle * Mathf.Deg2Rad) * Random.Range(9.8f, 11.5f),
-                .10f,
-                -42f + Mathf.Sin(angle * Mathf.Deg2Rad) * Random.Range(7.1f, 8.6f));
-            Rock(shore, shoreRockMaterial, Random.Range(.38f, .78f));
+                lakeBounds.center.x + Mathf.Cos(angle * Mathf.Deg2Rad) * rx,
+                .08f,
+                lakeBounds.center.z + Mathf.Sin(angle * Mathf.Deg2Rad) * rz);
+            Rock(shore, shoreRockMaterial, Random.Range(.28f, .52f));
         }
-        Debug.Log("Steal Eggs: added a distinct lakeside water feature and rocky shoreline.");
+
+        Debug.Log(importedLakePlaced
+            ? "Steal Eggs: placed imported Free Low Poly Nature Forest Lake tile and removed the old wave surface."
+            : "Steal Eggs: using static lake fallback because the imported Lake terrain tile could not be detected.");
+    }
+
+    private static bool TryPlaceImportedLakeTile(out Bounds lakeBounds)
+    {
+        lakeBounds = new Bounds(new Vector3(20f, .02f, -42f), new Vector3(24f, .1f, 20f));
+        GameObject asset = FindImportedLakeTile();
+        if (asset == null)
+            return false;
+
+        GameObject lake = PrefabUtility.InstantiatePrefab(asset, SceneManager.GetActiveScene()) as GameObject;
+        if (lake == null)
+            lake = Object.Instantiate(asset);
+        if (lake == null)
+            return false;
+
+        lake.name = "SUNLIT LAKESIDE - Free Low Poly Nature Lake";
+        lake.transform.position = new Vector3(20f, 0f, -42f);
+
+        Bounds beforeScale = GetRendererBoundsForLake(lake);
+        if (beforeScale.size.x > .01f && beforeScale.size.z > .01f)
+        {
+            // Fit the low-poly terrain tile inside the existing lakeside zone while preserving proportions.
+            float fitScale = Mathf.Min(25f / beforeScale.size.x, 20f / beforeScale.size.z);
+            fitScale = Mathf.Clamp(fitScale, .02f, 100f);
+            lake.transform.localScale *= fitScale;
+        }
+
+        Bounds scaledBounds = GetRendererBoundsForLake(lake);
+        Vector3 offset = new Vector3(
+            20f - scaledBounds.center.x,
+            .02f - scaledBounds.min.y,
+            -42f - scaledBounds.center.z);
+        lake.transform.position += offset;
+        lakeBounds = GetRendererBoundsForLake(lake);
+
+        Debug.Log("Steal Eggs: imported lake tile '" + asset.name + "' from " +
+            AssetDatabase.GetAssetPath(asset) + " placed at " + lake.transform.position);
+        return true;
+    }
+
+    private static GameObject FindImportedLakeTile()
+    {
+        var guids = new HashSet<string>();
+        foreach (string filter in new[] { "t:Prefab", "t:Model", "t:GameObject" })
+        {
+            foreach (string guid in AssetDatabase.FindAssets(filter, new[] { "Assets" }))
+                guids.Add(guid);
+        }
+
+        GameObject best = null;
+        int bestScore = 0;
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (string.IsNullOrEmpty(path) || path.ToLowerInvariant().EndsWith(".unity"))
+                continue;
+
+            GameObject candidate = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (candidate == null || candidate.GetComponentInChildren<Renderer>(true) == null)
+                continue;
+
+            string objectName = candidate.name.ToLowerInvariant();
+            string combined = (objectName + " " + path).ToLowerInvariant();
+            if (!combined.Contains("lake"))
+                continue;
+            if (combined.Contains("water shader") || combined.Contains("material") ||
+                combined.Contains("texture") || combined.Contains("thumbnail") || combined.Contains("icon"))
+                continue;
+
+            Bounds bounds = GetRendererBoundsForLake(candidate);
+            if (bounds.size.x < .1f || bounds.size.z < .1f)
+                continue;
+            // Do not mistake a huge pre-populated demo world for the individual terrain tile.
+            if (bounds.size.x > 500f || bounds.size.z > 500f)
+                continue;
+
+            int score = 100;
+            if (objectName.Contains("lake")) score += 100;
+            if (objectName.Contains("terrain") || objectName.Contains("tile")) score += 60;
+            if (combined.Contains("pure poly") || combined.Contains("freelowpolynatureforest") ||
+                combined.Contains("free-low-poly-nature-forest")) score += 40;
+            if (objectName.Contains("demo") || objectName.Contains("list scene")) score -= 80;
+            if (objectName.Contains("water")) score -= 10;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                best = candidate;
+            }
+        }
+        return bestScore >= 100 ? best : null;
+    }
+
+    private static Bounds GetRendererBoundsForLake(GameObject root)
+    {
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        if (renderers.Length == 0)
+            return new Bounds(root.transform.position, new Vector3(20f, 1f, 20f));
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+        return bounds;
     }
 
     private static void CreateDenseForest(Material trunkMat, Material leafMat)
