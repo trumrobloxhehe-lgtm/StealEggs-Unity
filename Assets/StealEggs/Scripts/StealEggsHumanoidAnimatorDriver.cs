@@ -9,7 +9,7 @@ public sealed class StealEggsHumanoidAnimatorDriver : MonoBehaviour
 {
     [SerializeField] private Animator targetAnimator;
     [SerializeField] private CharacterController characterController;
-    [SerializeField, Min(0.5f)] private float runSpeedForFullBlend = 8f;
+    [SerializeField, Min(0.5f)] private float runSpeedForFullBlend = 9f;
 
     private Vector3 previousPosition;
 
