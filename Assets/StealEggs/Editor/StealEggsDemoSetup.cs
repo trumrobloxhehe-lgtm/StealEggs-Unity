@@ -71,11 +71,7 @@ public static class StealEggsDemoSetup
         Cube("West Perimeter Wall", new Vector3(-79.5f, 1.1f, 0f), new Vector3(.8f, 2.2f, 110f), fence);
         Cube("East Perimeter Wall", new Vector3(79.5f, 1.1f, 0f), new Vector3(.8f, 2.2f, 110f), fence);
 
-        for (int x = -72; x <= 72; x += 12)
-        {
-            Tree(new Vector3(x, 0f, -44f), trunk, leaves, Random.Range(.8f, 1.25f));
-            Tree(new Vector3(x, 0f, 44f), trunk, leaves, Random.Range(.8f, 1.25f));
-        }
+        // The dense outer forest is placed after eggs spawn, so tree trunks avoid egg pickup points.
         for (int i = 0; i < 46; i++)
         {
             float x = Random.Range(-73f, 73f);
@@ -163,6 +159,8 @@ public static class StealEggsDemoSetup
             int coinValue = rarity == StealEggRarity.Diamond ? 100 : rarity == StealEggRarity.Golden ? 30 : rarity == StealEggRarity.Rare ? 12 : 5;
             Egg("Egg " + (i + 1) + " - " + rarity, positions[i], onRivalSide, eggMat, rarity, coinValue);
         }
+
+        CreateDenseForest(trunk, leaves);
 
         GameObject managerObj = new GameObject("Steal Eggs Game Manager");
         StealEggsGameManager manager = managerObj.AddComponent<StealEggsGameManager>();
@@ -352,7 +350,7 @@ public static class StealEggsDemoSetup
     {
         List<GameObject> treePrefabs = FindNaturePrefabs(
             "tree", "oak", "pine", "fir", "birch", "maple", "palm", "spruce", "willow", "broadleaf", "redwood", "cedar", "cypress", "eurya", "laurel", "bamboo", "cherryblossom", "planetree", "ginkgo", "japanesecedar", "japanesecypress", "sawtoothoak", "dawnredwood");
-        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(5.2f, 7.4f) * scale))
+        if (treePrefabs.Count > 0 && TryPlaceNaturePrefab(treePrefabs, pos, Random.Range(10.5f, 14.5f) * scale))
             return;
 
         GameObject treeRoot = new GameObject("Tree");
@@ -670,14 +668,53 @@ public static class StealEggsDemoSetup
         return initialized;
     }
 
+    private static void CreateDenseForest(Material trunkMat, Material leafMat)
+    {
+        // Six staggered rows create a dense, tall woodland backdrop while leaving the egg lanes playable.
+        float[] rows = { -50.5f, -45.5f, -40.5f, 40.5f, 45.5f, 50.5f };
+        EggPickup[] eggs = Object.FindObjectsByType<EggPickup>(FindObjectsSortMode.None);
+        int placed = 0;
+        const float spacing = 5.0f;
+
+        for (int row = 0; row < rows.Length; row++)
+        {
+            float stagger = row % 2 == 0 ? 0f : spacing * 0.5f;
+            for (float baseX = -76f + stagger; baseX <= 76f; baseX += spacing)
+            {
+                float x = Mathf.Clamp(baseX + Random.Range(-0.55f, 0.55f), -77f, 77f);
+                float z = rows[row] + Random.Range(-0.55f, 0.55f);
+
+                bool tooCloseToEgg = false;
+                for (int i = 0; i < eggs.Length; i++)
+                {
+                    if (eggs[i] == null) continue;
+                    Vector2 treePoint = new Vector2(x, z);
+                    Vector2 eggPoint = new Vector2(eggs[i].transform.position.x, eggs[i].transform.position.z);
+                    if (Vector2.Distance(treePoint, eggPoint) < 4.7f)
+                    {
+                        tooCloseToEgg = true;
+                        break;
+                    }
+                }
+                if (tooCloseToEgg) continue;
+
+                // Vary height and rotation so the forest does not look like evenly repeated props.
+                Tree(new Vector3(x, 0f, z), trunkMat, leafMat, Random.Range(1.0f, 1.48f));
+                placed++;
+            }
+        }
+
+        Debug.Log("Steal Eggs: placed " + placed + " tall trees for the dense woodland border.");
+    }
+
     private static bool CreateNaturalGroundCover()
     {
         List<GameObject> plants = FindNaturePrefabs("weed", "grass", "fern", "bush", "shrub", "clover", "plant", "mugwort", "viola", "eurya", "laurel", "bamboo", "fallenleaves");
         if (plants.Count == 0) return false;
 
         int placed = 0;
-        const int attempts = 140;
-        for (int i = 0; i < attempts && placed < 72; i++)
+        const int attempts = 260;
+        for (int i = 0; i < attempts && placed < 125; i++)
         {
             float x = Random.Range(-76f, 76f);
             float z = Random.Range(-50f, 50f);
