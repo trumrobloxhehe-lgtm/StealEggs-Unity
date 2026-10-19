@@ -33,7 +33,7 @@ public sealed class StealEggsHumanoidAnimatorDriver : MonoBehaviour
         previousPosition = transform.position;
 
         bool grounded = characterController == null || characterController.isGrounded;
-        bool jumping = !grounded && Mathf.Abs(velocity.y) > 0.08f;
+        bool jumping = !grounded;
         velocity.y = 0f;
 
         float normalizedSpeed = Mathf.Clamp01(velocity.magnitude / Mathf.Max(0.5f, runSpeedForFullBlend));
