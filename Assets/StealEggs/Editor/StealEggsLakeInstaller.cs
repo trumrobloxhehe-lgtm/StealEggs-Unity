@@ -325,7 +325,7 @@ public class StealEggsLakeInstaller : EditorWindow
             status = "Cảnh demo không hợp lệ hoặc đang là scene hiện tại.";
             return;
         }
-        if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWants() == false)
+        if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo() == false)
         {
             status = "Đã hủy thao tác vì bạn chưa xác nhận lưu scene đang sửa.";
             return;
