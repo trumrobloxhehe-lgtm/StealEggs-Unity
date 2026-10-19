@@ -752,10 +752,32 @@ public static class StealEggsDemoSetup
             value.ToLowerInvariant().Replace(" ", "").Replace("_", "").Replace("-", "").Replace(".", "");
     }
 
+    private static string[] FindPrefabAndModelAssetGuids()
+    {
+        List<string> allGuids = new List<string>();
+        HashSet<string> seenPaths = new HashSet<string>();
+        string[][] groups =
+        {
+            AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" }),
+            AssetDatabase.FindAssets("t:Model", new[] { "Assets" })
+        };
+
+        for (int group = 0; group < groups.Length; group++)
+        {
+            for (int i = 0; i < groups[group].Length; i++)
+            {
+                string assetPath = AssetDatabase.GUIDToAssetPath(groups[group][i]);
+                if (!seenPaths.Add(assetPath)) continue;
+                allGuids.Add(groups[group][i]);
+            }
+        }
+        return allGuids.ToArray();
+    }
+
     private static List<GameObject> FindRuinPrefabsByName(params string[] keywords)
     {
         List<GameObject> results = new List<GameObject>();
-        string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+        string[] guids = FindPrefabAndModelAssetGuids();
         for (int i = 0; i < guids.Length; i++)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
@@ -786,7 +808,7 @@ public static class StealEggsDemoSetup
     private static List<GameObject> FindImportedRuinPackagePrefabs()
     {
         List<GameObject> results = new List<GameObject>();
-        string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { "Assets" });
+        string[] guids = FindPrefabAndModelAssetGuids();
         for (int i = 0; i < guids.Length; i++)
         {
             string assetPath = AssetDatabase.GUIDToAssetPath(guids[i]);
@@ -836,15 +858,15 @@ public static class StealEggsDemoSetup
             // Poly Haven texture sets also include normal, roughness and displacement maps.
             // For this material we pick the color/albedo/diffuse map only.
             bool nonColorMap = normalizedName.Contains("normal") || normalizedName.Contains("norgl") ||
-                normalizedName.Contains("rough") || normalizedName.Contains("metal") ||
-                normalizedName.Contains("displacement") || normalizedName.Contains("height") ||
+                normalizedName.Contains("nor") || normalizedName.Contains("rough") || normalizedName.Contains("metal") ||
+                normalizedName.Contains("disp") || normalizedName.Contains("height") ||
                 normalizedName.Contains("ambientocclusion") || normalizedName.EndsWith("ao") ||
                 normalizedName.Contains("opacity") || normalizedName.Contains("specular");
             if (nonColorMap) continue;
 
             int score = 1;
             if (normalizedName.Contains("albedo")) score += 30;
-            if (normalizedName.Contains("diffuse")) score += 25;
+            if (normalizedName.Contains("diffuse") || normalizedName.Contains("diff")) score += 25;
             if (normalizedName.Contains("basecolor")) score += 25;
             if (normalizedName.Contains("color") || normalizedName.EndsWith("col")) score += 18;
             if (normalizedName.Contains("2k")) score += 3;
